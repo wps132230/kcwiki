@@ -1,2 +1,5 @@
 *.DS_Store
 voice/*.mp3
+/test
+.idea
+test.py
