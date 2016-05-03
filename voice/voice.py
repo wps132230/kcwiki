@@ -2,8 +2,8 @@ import json
 import requests
 import codecs
 
-# dicId = {360,361,362,363,440,449,456,471,473,476}
-dicId = {100,101,102}
+dicId = {360,361,362,363,476}
+
 logFile = open('voice.log', 'w')
 # with open('shipVoiceIdDict.json') as fp:
 #     shipVoiceIdDict = json.load(fp)
@@ -14,11 +14,15 @@ wikiFileNameDict = {}
 
 voiceId2Name = {1:'Intro', 2:'Sec1', 3:'Sec2', 4:'Sec3',\
 5:'ConstComplete', 6:'DockComplete', 7:'Return', 8:'Achievement', \
-9:'Equip1.mp3', 10:'Equip2', 11:'DockLightDmg', 12:'DockMedDmg.mp3', \
-13:'FleetOrg', 14:'Sortie', 15:'Battle', 16:'Atk1.mp3', 17:'Atk2', \
-18:'NightBattle.mp3', 19:'LightDmg1', 20:'LightDmg2', 21:'MedDmg', 22:'Sunk', \
+9:'Equip1', 10:'Equip2', 11:'DockLightDmg', 12:'DockMedDmg', \
+13:'FleetOrg', 14:'Sortie', 15:'Battle', 16:'Atk1', 17:'Atk2', \
+18:'NightBattle', 19:'LightDmg1', 20:'LightDmg2', 21:'MedDmg', 22:'Sunk', \
 23:'MVP', 24: 'Proposal', 25:'LibIntro', 26:'Equip3', 27:'Resupply', \
-28:'SecWed.mp3', 29: 'Idle.mp3'}
+28:'SecWed', 29:'Idle', 30:'0000', 31:'0100', 32:'0200', 33:'0300', \
+34:'0400', 35:'0500', 36:'0600', 37:'0700', 38:'0800', 39:'0900', \
+40:'1000', 41:'1100', 42:'1200', 43:'1300', 44:'1400', 45:'1500', \
+46:'1600', 47:'1700', 48:'1800', 49:'1900', 50:'2000', 51:'2100', \
+52:'2200', 53:'2300'}
 
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:45.0) Gecko/20100101 Firefox/45.0',\
 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',\
@@ -32,7 +36,8 @@ vcKey = [604825,607300,613847,615318,624009,631856,635451,637218,640529,643036,\
 714166,720579,728970,738675,740918,743009,747240,750347,759846,764051,770064,\
 773457,779858,786843,790526,799973,803260,808441,816028,825381,827516,832463,\
 837868,843091,852548,858315,867580,875771,879698,882759,885564,888837,896168]
-prefix = "http://voice.kcwiki.moe/kcs/sound/"
+# prefix = "http://voice.kcwiki.moe/kcs/sound/"
+prefix = "http://125.6.187.229/kcs/sound/"
 date = ['2', 'May']
 
 def getAllJson():
@@ -70,16 +75,16 @@ for ship in j:
 
     print str(num) + '\t' + str(shipId) + ' : ',
     logFile.write(str(shipId) + " : ")
-    for voiceId in range(1, 30):
+    for voiceId in range(30, 54):
         voiceFileName, shipVoiceId = getVoiceFileName(shipId, voiceId, fileName)
         response = requests.get(voiceFileName, headers)
-        print voiceFileName
+        # print voiceFileName
         # if response and isUpdate(response.headers['Last-Modified']):
         if response:
             wikiFileName = ship['wiki_id'] + '-' + voiceId2Name[voiceId] +'.mp3'
             data = response.content
-            with open(wikiFileName, 'wb') as f:
-                f.write(data)
+            # with open(wikiFileName, 'wb') as f:
+            #     f.write(data)
 
             print voiceId, 'y',
             # update log file

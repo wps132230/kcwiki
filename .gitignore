@@ -1,5 +1,6 @@
 *.DS_Store
 voice/*.mp3
-/test
+voice/test
+voice/test_spr2016
 .idea
 test.py
