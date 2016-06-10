@@ -2,9 +2,13 @@ import json
 import requests
 import codecs
 
-dicId = {360,361,362,363,476}
+includeId = {}
+excludeId = {}
+voiceIdRange = range(2,5)
+thresholdNum = 1000
+directory = 'voice_Tsuyu2016/'
 
-logFile = open('voice.log', 'w')
+logFile = open('voice2.log', 'w')
 # with open('shipVoiceIdDict.json') as fp:
 #     shipVoiceIdDict = json.load(fp)
 # with open('wikiFileNameDict.json') as fp:
@@ -12,7 +16,7 @@ logFile = open('voice.log', 'w')
 shipVoiceIdDict = {}
 wikiFileNameDict = {}
 
-voiceId2Name = {1:'Intro', 2:'Sec1', 3:'Sec2', 4:'Sec3',\
+voiceId2Name = {1:'Intro', 2:'Tsuyu2016', 3:'Sec2Tsuyu2016', 4:'Sec3',\
 5:'ConstComplete', 6:'DockComplete', 7:'Return', 8:'Achievement', \
 9:'Equip1', 10:'Equip2', 11:'DockLightDmg', 12:'DockMedDmg', \
 13:'FleetOrg', 14:'Sortie', 15:'Battle', 16:'Atk1', 17:'Atk2', \
@@ -38,7 +42,7 @@ vcKey = [604825,607300,613847,615318,624009,631856,635451,637218,640529,643036,\
 837868,843091,852548,858315,867580,875771,879698,882759,885564,888837,896168]
 # prefix = "http://voice.kcwiki.moe/kcs/sound/"
 prefix = "http://125.6.187.229/kcs/sound/"
-date = ['2', 'May']
+date = ['01', 'Jun', '2016']
 
 def getAllJson():
     response = requests.get('http://kcwikizh.github.io/kcdata/ship/all.json')
@@ -54,9 +58,9 @@ def getFileName(j, shipId):
             return ship['filename']
 
 def isUpdate(modifiedDate):
-    if modifiedDate.split()[1] == date[0] \
-    and (modifiedDate.split()[2] == "1"
-    or modifiedDate.split()[2] == "2"):
+    if (modifiedDate.split()[1] == date[0]) \
+    and (modifiedDate.split()[2] == date[1])\
+    and (modifiedDate.split()[3] == date[2]):
         return True
     else:
         return False
@@ -69,37 +73,44 @@ for ship in j:
     # if num == 2:
         # break
     shipId = int(ship['id'])
-    if shipId not in dicId:
+    if len(includeId) > 0 and shipId not in includeId:
         continue
+    if len(excludeId) > 0 and shipId in excludeId:
+        continue
+    if shipId > 500:
+        continue
+    if num > thresholdNum:
+        break
+
     fileName = ship['filename']
 
     print str(num) + '\t' + str(shipId) + ' : ',
     logFile.write(str(shipId) + " : ")
-    for voiceId in range(30, 54):
+    for voiceId in voiceIdRange:
         voiceFileName, shipVoiceId = getVoiceFileName(shipId, voiceId, fileName)
         response = requests.get(voiceFileName, headers)
         # print voiceFileName
-        # if response and isUpdate(response.headers['Last-Modified']):
-        if response:
+        if response and isUpdate(response.headers['Last-Modified']):
+        # if response:
             wikiFileName = ship['wiki_id'] + '-' + voiceId2Name[voiceId] +'.mp3'
             data = response.content
-            # with open(wikiFileName, 'wb') as f:
-            #     f.write(data)
+            with open(directory + wikiFileName, 'wb') as f:
+                f.write(data)
 
             print voiceId, 'y',
             # update log file
             logFile.write(str(voiceId) + ', ')
             if shipId not in shipVoiceIdDict:
-                shipVoiceIdDict[shipId] = [shipVoiceId]
+                shipVoiceIdDict[shipId] = {voiceId:shipVoiceId}
             else:
-                shipVoiceIdDict[shipId].append(shipVoiceId)
+                shipVoiceIdDict[shipId][voiceId] = shipVoiceId
             wikiFileNameDict[shipVoiceId] = wikiFileName
         else:
             print voiceId, 'x',
-        with open('shipVoiceIdDict.json', 'w') as fp:
-            json.dump(shipVoiceIdDict, fp)
-        with open('wikiFileNameDict.json', 'w') as fp:
-            json.dump(wikiFileNameDict, fp)
+        # with open('shipVoiceIdDict.json', 'w') as fp:
+        #     json.dump(shipVoiceIdDict, fp)
+        # with open('wikiFileNameDict.json', 'w') as fp:
+        #     json.dump(wikiFileNameDict, fp)
     print
     logFile.write('\n')
     num = num + 1

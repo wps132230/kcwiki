@@ -1,14 +1,14 @@
 import json
 import copy
-from requests import (post,ConnectionError,HTTPError,
-	Timeout,TooManyRedirects)
+from requests import (post,ConnectionError,HTTPError,Timeout,TooManyRedirects)
 from functools import wraps
 #import logging
 #import sys
 #import time
 import json
 
-logFile = open('spring2016.log', 'w')
+logFile = open('Tsuyu2016.log', 'w')
+directory = 'voice_Tsuyu2016/'
 
 with open('voiceNeedUpdate.json') as fp:
     voiceNeedUpdate = json.load(fp)
@@ -45,27 +45,30 @@ token = rep.json()['query']['tokens']['csrftoken']
 
 num = 0
 for shipId in voiceNeedUpdate:
-    for i in range(len(voiceNeedUpdate[shipId])):
-        if voiceNeedUpdate[shipId][i] == None:
+    for voiceId in voiceNeedUpdate[shipId]:
+        if voiceNeedUpdate[shipId][voiceId] == None:
             continue
-        shipVoiceId = str(voiceNeedUpdate[shipId][i])
+        shipVoiceId = str(voiceNeedUpdate[shipId][voiceId])
         filename = wikiFileNameDict[shipVoiceId]
         num = num + 1
 
-        rdata = {'action': 'upload', 'token': token, 'format': 'json', 'filename': filename}
-        files = {'file': open(filename, 'rb')}
+        if num <= 89:
+            continue
 
-        rep = post('http://zh.kcwiki.moe/api.php', \
-        rdata, cookies = cookies, headers = headers, files = files)
+        rdata = {'action': 'upload', 'token': token, 'format': 'json', 'filename': filename}
+        files = {'file': open(directory + filename, 'rb')}
+
+        rep = post('http://zh.kcwiki.moe/api.php', rdata, cookies = cookies, headers = headers, files = files)
         # print rep.json()
         result = rep.json()['upload']['result'].encode('utf-8')
         if result == 'Success':
             print str(num) + ' : ' + filename + ' : ' + 'Success'
             logFile.write(str(shipId) + ' : ' + filename + ' : ' + 'Success' + '\n')
         else:
-            # print rep.json()
             print str(num) + ' : ' + filename + ' : ' + 'Failed'
+            print rep.json()
             logFile.write(str(shipId) + ' : ' + filename + ' : ' + 'Failed' + '\n')
+            logFile.write(json.dumps(rep.json()) + '\n')
 
 # num = 0
 # fp = open('shipId269', 'r')

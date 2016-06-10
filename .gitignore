@@ -2,5 +2,9 @@
 voice/*.mp3
 voice/test
 voice/test_spr2016
+voice/voice*
+voice/wikicode*
+voice/*.log
+voice/*.json
 .idea
 test.py
