@@ -52,8 +52,8 @@ for shipId in voiceNeedUpdate:
         filename = wikiFileNameDict[shipVoiceId]
         num = num + 1
 
-        if num <= 89:
-            continue
+        # if num <= 89:
+        #     continue
 
         rdata = {'action': 'upload', 'token': token, 'format': 'json', 'filename': filename}
         files = {'file': open(directory + filename, 'rb')}

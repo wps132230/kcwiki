@@ -4,9 +4,13 @@ import codecs
 
 includeId = {}
 excludeId = {}
-voiceIdRange = range(2,5)
+voiceIdRange = [2,3,4,30]
 thresholdNum = 1000
 directory = 'voice_Tsuyu2016/'
+# prefix = "http://voice.kcwiki.moe/kcs/sound/"
+prefix = "http://125.6.187.229/kcs/sound/"
+date = ['10', 'Jun', '2016']
+
 
 logFile = open('voice2.log', 'w')
 # with open('shipVoiceIdDict.json') as fp:
@@ -16,7 +20,7 @@ logFile = open('voice2.log', 'w')
 shipVoiceIdDict = {}
 wikiFileNameDict = {}
 
-voiceId2Name = {1:'Intro', 2:'Tsuyu2016', 3:'Sec2Tsuyu2016', 4:'Sec3',\
+voiceId2Name = {1:'Intro', 2:'Tsuyu2016', 3:'Sec2Tsuyu2016', 4:'Sec3Tsuyu2016',\
 5:'ConstComplete', 6:'DockComplete', 7:'Return', 8:'Achievement', \
 9:'Equip1', 10:'Equip2', 11:'DockLightDmg', 12:'DockMedDmg', \
 13:'FleetOrg', 14:'Sortie', 15:'Battle', 16:'Atk1', 17:'Atk2', \
@@ -40,9 +44,6 @@ vcKey = [604825,607300,613847,615318,624009,631856,635451,637218,640529,643036,\
 714166,720579,728970,738675,740918,743009,747240,750347,759846,764051,770064,\
 773457,779858,786843,790526,799973,803260,808441,816028,825381,827516,832463,\
 837868,843091,852548,858315,867580,875771,879698,882759,885564,888837,896168]
-# prefix = "http://voice.kcwiki.moe/kcs/sound/"
-prefix = "http://125.6.187.229/kcs/sound/"
-date = ['01', 'Jun', '2016']
 
 def getAllJson():
     response = requests.get('http://kcwikizh.github.io/kcdata/ship/all.json')
@@ -107,10 +108,10 @@ for ship in j:
             wikiFileNameDict[shipVoiceId] = wikiFileName
         else:
             print voiceId, 'x',
-        # with open('shipVoiceIdDict.json', 'w') as fp:
-        #     json.dump(shipVoiceIdDict, fp)
-        # with open('wikiFileNameDict.json', 'w') as fp:
-        #     json.dump(wikiFileNameDict, fp)
+        with open('shipVoiceIdDict.json', 'w') as fp:
+            json.dump(shipVoiceIdDict, fp)
+        with open('wikiFileNameDict.json', 'w') as fp:
+            json.dump(wikiFileNameDict, fp)
     print
     logFile.write('\n')
     num = num + 1
