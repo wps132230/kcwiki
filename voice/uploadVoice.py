@@ -7,8 +7,8 @@ from functools import wraps
 #import time
 import json
 
-logFile = open('Tsuyu2016.log', 'w')
-directory = 'voice_Tsuyu2016/'
+logFile = open('Shoka2016.log', 'w')
+directory = 'voice_Shoka2016/'
 
 with open('voiceNeedUpdate.json') as fp:
     voiceNeedUpdate = json.load(fp)

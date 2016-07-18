@@ -4,7 +4,7 @@ import codecs
 import hashlib
 import copy
 
-directory = 'voice_Tsuyu2016/'
+directory = 'voice_Shoka2016/'
 
 with open('shipVoiceIdDict.json') as fp:
     shipVoiceIdDict = json.load(fp)

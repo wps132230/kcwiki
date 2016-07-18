@@ -2,14 +2,16 @@ import json
 import requests
 import codecs
 
+# includeId = {15,16,231,232,233,242,407,42,94}
 includeId = {}
 excludeId = {}
-voiceIdRange = [2,3,4,30]
+# voiceIdRange = [2,3,4,30]
+voiceIdRange = range(5,31)
 thresholdNum = 1000
-directory = 'voice_Tsuyu2016/'
+directory = 'voice_Shoka2016/'
 # prefix = "http://voice.kcwiki.moe/kcs/sound/"
 prefix = "http://125.6.187.229/kcs/sound/"
-date = ['10', 'Jun', '2016']
+date = [['14','15'], 'Jul', '2016']
 
 
 logFile = open('voice2.log', 'w')
@@ -20,7 +22,7 @@ logFile = open('voice2.log', 'w')
 shipVoiceIdDict = {}
 wikiFileNameDict = {}
 
-voiceId2Name = {1:'Intro', 2:'Tsuyu2016', 3:'Sec2Tsuyu2016', 4:'Sec3Tsuyu2016',\
+voiceId2Name = {1:'Intro', 2:'Sec1Shoka2016', 3:'Sec2Shoka2016', 4:'Sec3Shoka2016',\
 5:'ConstComplete', 6:'DockComplete', 7:'Return', 8:'Achievement', \
 9:'Equip1', 10:'Equip2', 11:'DockLightDmg', 12:'DockMedDmg', \
 13:'FleetOrg', 14:'Sortie', 15:'Battle', 16:'Atk1', 17:'Atk2', \
@@ -59,8 +61,8 @@ def getFileName(j, shipId):
             return ship['filename']
 
 def isUpdate(modifiedDate):
-    if (modifiedDate.split()[1] == date[0]) \
-    and (modifiedDate.split()[2] == date[1])\
+    if (modifiedDate.split()[1] in date[0]) \
+    and (modifiedDate.split()[2] == date[1]) \
     and (modifiedDate.split()[3] == date[2]):
         return True
     else:
@@ -108,9 +110,9 @@ for ship in j:
             wikiFileNameDict[shipVoiceId] = wikiFileName
         else:
             print voiceId, 'x',
-        with open('shipVoiceIdDict.json', 'w') as fp:
+        with open('shipVoiceIdDict2.json', 'w') as fp:
             json.dump(shipVoiceIdDict, fp)
-        with open('wikiFileNameDict.json', 'w') as fp:
+        with open('wikiFileNameDict2.json', 'w') as fp:
             json.dump(wikiFileNameDict, fp)
     print
     logFile.write('\n')
