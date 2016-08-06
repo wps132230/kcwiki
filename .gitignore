@@ -1,11 +1,21 @@
-*.DS_Store
-voice/*.mp3
-voice/test
-voice/test_spr2016
-voice/wikicode*
-voice/voice_*
-voice/*.log
-voice/*.json
-voice/*.txt
-.idea
+# voice
+voice_*/
+
+# Json files, except config.json
+voice_*.json
+
+# Log files
+*.log
+
+# Test files
 test.py
+
+# Mac stuff
+*.DS_Store
+
+# Pycharm stuff
+.idea
+
+# vs code stuff
+.vscode
+

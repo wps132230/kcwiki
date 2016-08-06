@@ -1,9 +1,0 @@
-INFO       2015-09-28 00:51:18,170 Starting new HTTP connection (1): zh.kcwiki.moe
-DEBUG      2015-09-28 00:51:19,484 "POST /api.php HTTP/1.1" 200 None
-INFO       2015-09-28 00:51:19,493 Starting new HTTP connection (1): zh.kcwiki.moe
-DEBUG      2015-09-28 00:51:19,947 "POST /api.php HTTP/1.1" 200 None
-INFO       2015-09-28 00:51:19,951 [http://zh.kcwiki.moe/api.php] 登陆成功，用户名：wps132230
-INFO       2015-09-28 00:51:20,128 Starting new HTTP connection (1): zh.kcwiki.moe
-DEBUG      2015-09-28 00:51:20,440 "POST /api.php HTTP/1.1" 200 None
-INFO       2015-09-28 00:51:20,446 Starting new HTTP connection (1): zh.kcwiki.moe
-DEBUG      2015-09-28 00:51:22,492 "POST /api.php HTTP/1.1" 200 None
