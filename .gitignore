@@ -1,4 +1,10 @@
-# voice
+# Python pyc
+*.pyc
+
+# wikicode
+wikicode_*
+
+# Voice
 voice_*/
 
 # Json files, except config.json
