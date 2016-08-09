@@ -249,6 +249,8 @@ class KcwikiVoiceClient(KC.KcwikiClient):
                                                   'chinese_name': chineseName}})
                 if voiceStatus == 'duplicate_2':
                     duplicatedWikiFilename = self.voiceDataJson[shipId]['voice_duplicate'][voiceId][0]
+                    if duplicatedWikiFilename[-8:-5] != '201':
+                        continue
                     oldUnitList[stype].update({ duplicatedWikiFilename[:-4]:
                                                 { 'wiki_id': wikiId,
                                                   'chinese_name': chineseName}})
