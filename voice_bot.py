@@ -11,12 +11,15 @@ if len(sys.argv) == 1:
 
 if len(sys.argv) == 2:
 	if sys.argv[1] == 'download' or sys.argv[1] == '-d':
-		print '-'*16 + ' download ' + '-'*16
+		print '-'*16 + ' download started ' + '-'*16
 		voiceClient.downloadVoice()
 		voiceClient.removeDuplicatedVoice()
+		print '-'*16 + ' download finished ' + '-'*16
 	if sys.argv[1] == 'upload' or sys.argv[1] == '-u':
-		print '-'*16 + ' upload ' + '-'*16
-		voiceClient.uploadVoice()
-	if sys.argv[1] == 'genwiki' or sys.argv[1] == '-g':
-		print '-'*16 + ' generate wiki code ' + '-'*16
+		print '-'*16 + ' upload started ' + '-'*16
+		voiceClient.uploadVoice( 
+		print '-'*16 + ' upload finished ' + '-'*16
+	if sys.argv[1] == 'genwiki_seasonal' or sys.argv[1] == '-g':
+		print '-'*16 + ' generate wiki code started' + '-'*16
 		voiceClient.generateWikiCode()
+		print '-'*16 + ' generate wiki code finished' + '-'*16
