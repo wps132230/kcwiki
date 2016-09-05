@@ -60,8 +60,8 @@ class KcwikiVoiceClient(KC.KcwikiClient):
 
         self.voiceDataJsonFile = 'voice_data.json'
         if not os.path.exists(self.voiceDataJsonFile):
-	        with open(self.voiceDataJsonFile, 'w') as fp:
-		        fp.write('{}')
+            with open(self.voiceDataJsonFile, 'w') as fp:
+                fp.write('{}')
         with codecs.open(self.voiceDataJsonFile, 'r', 'utf-8') as fp:
             self.voiceDataJson = json.load(fp)
         
@@ -70,6 +70,17 @@ class KcwikiVoiceClient(KC.KcwikiClient):
 
         if not os.path.exists('voice_' + self.seasonalSuffix):
             os.mkdir('voice_' + self.seasonalSuffix)
+        
+        if not os.path.exists('subtitlesZh.json'):
+            with open('subtitlesZh.json', 'w') as fp:
+                fp.write('{}')
+        with open('subtitlesZh.json', 'r') as fp:
+            self.subtitlesZh = json.load(fp)
+        if not os.path.exists('subtitlesJp.json'):
+            with open('subtitlesJp.json', 'w') as fp:
+                fp.write('{}')
+        with open('subtitlesJp.json', 'r') as fp:
+            self.subtitlesJp = json.load(fp)
 
 #-------------------------------- Download Voice --------------------------------
 
@@ -95,7 +106,7 @@ class KcwikiVoiceClient(KC.KcwikiClient):
                 continue
             if num > self.thresholdUpForDebug:
                 break
-            if len(self.downloadIncludeId) > 0 and shipId not in self.downloadExcludeId:
+            if len(self.downloadIncludeId) > 0 and shipId not in self.downloadIncludeId:
                 continue
             if len(self.downloadExcludeId) > 0 and shipId in self.downloadExcludeId:
                 continue
@@ -180,6 +191,10 @@ class KcwikiVoiceClient(KC.KcwikiClient):
         self.login()
         totalNum = 0
         for shipId in self.voiceDataJson:
+            if len(self.downloadIncludeId) > 0 and int(shipId) not in self.downloadIncludeId:
+                continue
+            if len(self.downloadExcludeId) > 0 and int(shipId) in self.downloadExcludeId:
+                continue
             chineseName = self.voiceDataJson[shipId]['chinese_name'] 
             for voiceId in self.voiceDataJson[shipId]['voice_status']:
                 if self.voiceDataJson[shipId]['voice_status'][voiceId] != 'download':
@@ -218,24 +233,24 @@ class KcwikiVoiceClient(KC.KcwikiClient):
         shutil.copy(self.voiceDataJsonFile, self.voiceDataJsonFile[:-5] + '_backup_upload_voice.json')
 
 #-------------------------------- generate wiki code --------------------------------
-    def generateUnitWikiCodeSeasonal(self, wikiId, chineseName, wikiFilename):
+    def generateUnitWikiCodeSeasonal(self, wikiId, chineseName, wikiFilename, subtitleJp, subtitleZh):
         rname = ''
         rname = rname + u'{{台词翻译表|type=seasonal' + '\n'
         rname = rname + u' | 档名 = ' + wikiFilename + '\n'
         rname = rname + u' | 编号 = ' + wikiId + '\n'
         rname = rname + u' | 舰娘名字 = ' + chineseName + '\n'
-        rname = rname + u' | 日文台词 = ' + '\n'
-        rname = rname + u' | 中文译文 = ' + '\n'
+        rname = rname + u' | 日文台词 = ' + subtitleJp + '\n'
+        rname = rname + u' | 中文译文 = ' + subtitleZh + '\n'
         rname = rname + '}}' + '\n'
         return rname
     
-    def generateUnitWikiCodeNewship(self, voiceId, wikiFilename):
+    def generateUnitWikiCodeNewship(self, voiceId, wikiFilename, subtitleJp, subtitleZh):
         rname = ''
         rname = rname + u'{{台词翻译表' + '\n'
         rname = rname + u' | 档名 = ' + wikiFilename[:-4] + '\n'
         rname = rname + u' | 场合 = ' + self.voiceId2NameZh[int(voiceId)] + '\n'
-        rname = rname + u' | 日文台词 = ' + '\n'
-        rname = rname + u' | 中文译文 = ' + '\n'
+        rname = rname + u' | 日文台词 = ' + subtitleJp + '\n'
+        rname = rname + u' | 中文译文 = ' + subtitleZh + '\n'
         rname = rname + '}}' + '\n'
         return rname
 
@@ -249,7 +264,11 @@ class KcwikiVoiceClient(KC.KcwikiClient):
             wikiCodeStr = wikiCodeStr + u'{{台词翻译表/页头|type=seasonal}}' + '\n'
             sortedUnitList = sorted(shipDict.iteritems(), key=lambda d:d[0])
             for ship in sortedUnitList:
-                wikiCodeStr = wikiCodeStr + self.generateUnitWikiCodeSeasonal(ship[1]['wiki_id'], ship[1]['chinese_name'], ship[0])
+                subtitleJp = '' if ship[1]['ship_id'] not in self.subtitlesJp or ship[1]['voice_id'] not in self.subtitlesJp \
+                                else self.subtitlesJp[ship[1]['ship_id']][ship[1]['voice_id']]
+                subtitleZh = '' if ship[1]['ship_id'] not in self.subtitlesZh or ship[1]['voice_id'] not in self.subtitlesZh \
+                                else self.subtitlesZh[ship[1]['ship_id']][ship[1]['voice_id']]
+                wikiCodeStr = wikiCodeStr + self.generateUnitWikiCodeSeasonal(ship[1]['wiki_id'], ship[1]['chinese_name'], ship[0], subtitleJp, subtitleZh)
             wikiCodeStr = wikiCodeStr + u'{{页尾}}' + '\n\n'
         wikiCodeFile = codecs.open('wikicode_' + self.seasonalSuffix + wikiCodeSuffix, 'w', 'utf-8')
         wikiCodeFile.write(wikiCodeStr)
@@ -259,6 +278,10 @@ class KcwikiVoiceClient(KC.KcwikiClient):
         oldUnitList = [{} for i in range(23)]
         newUnitList = [{} for i in range(23)]
         for shipId in self.voiceDataJson:
+            if len(self.downloadIncludeId) > 0 and int(shipId) not in self.downloadIncludeId:
+                continue
+            if len(self.downloadExcludeId) > 0 and int(shipId) in self.downloadExcludeId:
+                continue
             for voiceId in self.voiceDataJson[shipId]['voice_status']:
                 chineseName = self.voiceDataJson[shipId]['chinese_name']
                 stype = self.voiceDataJson[shipId]['stype']
@@ -267,30 +290,45 @@ class KcwikiVoiceClient(KC.KcwikiClient):
                 voiceStatus = self.voiceDataJson[shipId]['voice_status'][voiceId]
                 if voiceStatus == 'warnings' or voiceStatus == 'upload':
                     newUnitList[stype].update({ wikiFilename[:-4]:
-                                                { 'wiki_id': wikiId,
+                                                { 'ship_id': shipId,
+                                                  'voice_id': voiceId,
+                                                  'wiki_id': wikiId,
                                                   'chinese_name': chineseName}})
                 if voiceStatus == 'duplicate_2':
                     duplicatedWikiFilename = self.voiceDataJson[shipId]['voice_duplicate'][voiceId][0]
                     if duplicatedWikiFilename[-8:-5] != '201':
                         continue
                     oldUnitList[stype].update({ duplicatedWikiFilename[:-4]:
-                                                { 'wiki_id': wikiId,
+                                                { 'ship_id': shipId,
+                                                  'voice_id': voiceId,
+                                                  'wiki_id': wikiId,
                                                   'chinese_name': chineseName}})
         self.generateSectionWikiCode(oldUnitList, '_old')
         self.generateSectionWikiCode(newUnitList, '')
 
     def generateWikiCodeNewship(self):
         for shipId in self.voiceDataJson:
+            if len(self.downloadIncludeId) > 0 and int(shipId) not in self.downloadIncludeId:
+                continue
+            if len(self.downloadExcludeId) > 0 and int(shipId) in self.downloadExcludeId:
+                continue
             wikiCodeStr = ''
             chineseName = self.voiceDataJson[shipId]['chinese_name']
             wikiCodeStr += '===' + chineseName + '===' + '\n'
             wikiCodeStr += u'{{台词翻译表/页头}}' + '\n'
-            for voiceId in self.voiceDataJson[shipId]['voice_status']:
+            for intVoiceId in range(1, 54):
+                voiceId = str(intVoiceId)
+                if voiceId not in self.voiceDataJson[shipId]['voice_status']:
+                    continue
                 wikiId = self.voiceDataJson[shipId]['wiki_id']
                 wikiFilename = self.voiceDataJson[shipId]['voice_wiki_filename'][voiceId]
                 voiceStatus = self.voiceDataJson[shipId]['voice_status'][voiceId]
                 if voiceStatus == 'upload' or voiceStatus == 'warnings':
-                    wikiCodeStr += self.generateUnitWikiCodeNewship(voiceId, wikiFilename)
+                    subtitleJp = '' if shipId not in self.subtitlesJp or voiceId not in self.subtitlesJp \
+                                    else self.subtitlesJp[shipId][voiceId]
+                    subtitleZh = '' if shipId not in self.subtitlesZh or voiceId not in self.subtitlesZh \
+                                    else self.subtitlesZh[shipId][voiceId]
+                    wikiCodeStr += self.generateUnitWikiCodeNewship(voiceId, wikiFilename, subtitleJp, subtitleZh)
             wikiCodeStr += u'{{页尾}}' + '\n\n'
             wikiCodeFile = codecs.open('wikicode_' + shipId + '_' + chineseName, 'w', 'utf-8')
             wikiCodeFile.write(wikiCodeStr)

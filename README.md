@@ -40,3 +40,4 @@ or python voice_bot.py upload
 python voice_bot.py －g
 or python voice_bot.py genwiki
 ```
+如果文件夹下有"subtitlesJp.json"和"subtitlesZh.json"，会自动将字幕合并到生成的wikicode中。
