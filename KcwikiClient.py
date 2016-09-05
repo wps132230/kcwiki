@@ -5,7 +5,7 @@ import datetime
 
 class KcwikiClient:
     def __init__(self):
-        self.zhKcWikiUrl = 'http://zh.kcwiki.moe/api.php'
+        self.zhKcWikiUrl = 'https://zh.kcwiki.moe/api.php'
         self.loginToken = ""
         self.editToken = ""
         self.cookies = ""
