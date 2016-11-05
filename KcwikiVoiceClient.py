@@ -7,6 +7,11 @@ import hashlib
 import os
 import shutil
 
+import sys  
+
+reload(sys)  
+sys.setdefaultencoding('utf8')
+
 class KcwikiVoiceClient(KC.KcwikiClient):
     def __init__(self):
         KC.KcwikiClient.__init__(self)
@@ -74,12 +79,12 @@ class KcwikiVoiceClient(KC.KcwikiClient):
         if not os.path.exists('subtitlesZh.json'):
             with open('subtitlesZh.json', 'w') as fp:
                 fp.write('{}')
-        with open('subtitlesZh.json', 'r') as fp:
+        with codecs.open('subtitlesZh.json', 'r', 'utf-8') as fp:
             self.subtitlesZh = json.load(fp)
         if not os.path.exists('subtitlesJp.json'):
             with open('subtitlesJp.json', 'w') as fp:
                 fp.write('{}')
-        with open('subtitlesJp.json', 'r') as fp:
+        with codecs.open('subtitlesJp.json', 'r', 'utf-8') as fp:
             self.subtitlesJp = json.load(fp)
 
 #-------------------------------- Download Voice --------------------------------
@@ -120,7 +125,7 @@ class KcwikiVoiceClient(KC.KcwikiClient):
             if chineseName == None:
                 continue
             
-            printResult = str(shipId) + '(' + chineseName + ')' + ' : '
+            printResult = str(shipId) + '(' + chineseName.encode('utf-8') + ')' + ' : '
             print str(num) + '\t' + printResult,
             self.downloadVoiceLog.write(printResult)
             for voiceId in self.voiceIdRange:
@@ -174,7 +179,7 @@ class KcwikiVoiceClient(KC.KcwikiClient):
                     if ship['after_ship_id'] != None:
                         nextShipId = str(ship['after_ship_id'])
                         if nextShipId in self.voiceDataJson:
-                            nextShipWikiFilename = self.voiceDataJson[nextShipId]['voice_wiki_filename'][voiceId]
+                            nextShipWikiFilename = self.voiceDataJson[nextShipId]['voice_wiki_filename'][voiceId.encode('utf-8')]
                             shipWikiFilename = self.voiceDataJson[shipId]['voice_wiki_filename'][voiceId]
                             # print shipWikiFilename, nextShipWikiFilename
                             if hashlib.md5(open('voice_' + self.seasonalSuffix + '/' + shipWikiFilename, 'rb').read()).hexdigest() \
@@ -208,12 +213,12 @@ class KcwikiVoiceClient(KC.KcwikiClient):
                 response = requests.post(self.zhKcWikiUrl, rdata, cookies = self.cookies, headers = self.headers, files = files)
                 result = response.json()['upload']['result'].encode('utf-8')
                 if result == 'Success':
-                    resultPrint = str(shipId) + '(' + chineseName + ')' + ' : ' + wikiFilename + ' : ' + 'Success'
+                    resultPrint = str(shipId) + '(' + chineseName.encode('utf-8') + ')' + ' : ' + wikiFilename + ' : ' + 'Success'
                     print str(totalNum) + '\t' + resultPrint
                     self.uploadVoiceLog.write(str(shipId) + ' : ' + wikiFilename + ' : ' + 'Success' + '\n')
                     self.voiceDataJson[shipId]['voice_status'][voiceId] = 'upload'
                 else:
-                    resultPrint = str(shipId) + '(' + chineseName + ')' + ' : ' + wikiFilename + ' : ' + 'Failed'
+                    resultPrint = str(shipId) + '(' + chineseName.encode('utf-8') + ')' + ' : ' + wikiFilename + ' : ' + 'Failed'
                     print str(totalNum) + '\t' + resultPrint + '\n\t' + response.text
                     self.uploadVoiceLog.write(resultPrint + '\n\t')
                     self.uploadVoiceLog.write(json.dumps(response.json()) + '\n')
