@@ -132,7 +132,7 @@ class KcwikiVoiceClient(KC.KcwikiClient):
                 voiceCacheUrl, voiceCacheId = self.getVoiceCacheUrl(shipId, voiceId, filename)
                 response = requests.get(voiceCacheUrl, self.headers)
                 if response and self.isUpdate(response.headers['Last-Modified']):
-                    # if response:
+                # if response:
                     if (shipId not in self.newShipId) and (self.config['voice_config']['type'] == 'seasonal'):
                         wikiFilename = wikiId + '-' + self.voiceId2Name[voiceId] + self.seasonalSuffix + '.mp3'
                     else:
@@ -269,9 +269,9 @@ class KcwikiVoiceClient(KC.KcwikiClient):
             wikiCodeStr = wikiCodeStr + u'{{台词翻译表/页头|type=seasonal}}' + '\n'
             sortedUnitList = sorted(shipDict.iteritems(), key=lambda d:d[0])
             for ship in sortedUnitList:
-                subtitleJp = '' if ship[1]['ship_id'] not in self.subtitlesJp or ship[1]['voice_id'] not in self.subtitlesJp \
+                subtitleJp = '' if ship[1]['ship_id'] not in self.subtitlesJp or ship[1]['voice_id'] not in self.subtitlesJp[ship[1]['ship_id']] \
                                 else self.subtitlesJp[ship[1]['ship_id']][ship[1]['voice_id']]
-                subtitleZh = '' if ship[1]['ship_id'] not in self.subtitlesZh or ship[1]['voice_id'] not in self.subtitlesZh \
+                subtitleZh = '' if ship[1]['ship_id'] not in self.subtitlesZh or ship[1]['voice_id'] not in self.subtitlesZh[ship[1]['ship_id']] \
                                 else self.subtitlesZh[ship[1]['ship_id']][ship[1]['voice_id']]
                 wikiCodeStr = wikiCodeStr + self.generateUnitWikiCodeSeasonal(ship[1]['wiki_id'], ship[1]['chinese_name'], ship[0], subtitleJp, subtitleZh)
             wikiCodeStr = wikiCodeStr + u'{{页尾}}' + '\n\n'
