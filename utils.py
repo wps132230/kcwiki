@@ -12,6 +12,8 @@ def nedb2json(nedbFilename, jsonFilename):
 def json2dic(json, masterKey):
     dic = {}
     for entry in json:
+        if not entry[masterKey]:
+            continue
         dic[entry[masterKey]] = entry
     return dic
 
