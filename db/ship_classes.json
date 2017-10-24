@@ -1,4 +1,5 @@
-[{"ship_type_id":10,"id":31,"_id":"0AfkBhoswsyIt8y9","speed_rule":"high-2","name":{"en_us":"Unryuu","ja_jp":"雲龍","zh_cn":"云龙"}},
+[
+{"ship_type_id":10,"id":31,"_id":"0AfkBhoswsyIt8y9","speed_rule":"high-2","name":{"en_us":"Unryuu","ja_jp":"雲龍","zh_cn":"云龙"}},
 {"ship_type_id":32,"id":95,"_id":"0zwQTERDbU74z621","name":{"en_us":"Kasuga Maru","ja_jp":"春日丸","zh_cn":"春日丸"}},
 {"id":1,"ship_type_id":20,"_id":"1ly1K7GgqVSs3MOY","speed_rule":"low-2","name":{"en_us":"","ja_jp":"長門","zh_cn":"长门"}},
 {"ship_type_id":14,"id":68,"_id":"3TtUWRHqFYIrakb9","speed_rule":"low-3","name":{"en_us":"Sentoku (I-400)","ja_jp":"潜特","zh_cn":"潜特"}},
