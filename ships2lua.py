@@ -1,5 +1,5 @@
 '''
-Generate lua table
+Generate ships lua table
 from two sources: 'zh.kcwiki.org' and 'Who calls the fleet'.
 '''
 import utils
@@ -36,6 +36,7 @@ STYPE_MAP = {1: 2, 2: 3, 3: 4, 4: 5, 5: 5,
              31: 1, 32: 7}
 SHIP_NAME_SUFFIX = {}
 SHIP_CLASSES = {}
+SHIP_SERIES = {}
 WIKI_SHIPS = {}
 ENTITIES = {}
 
@@ -76,6 +77,47 @@ def safe_suffix(suffix, lan):
     return SHIP_NAME_SUFFIX[suffix][lan]
 
 
+def get_relname(rel, prev_id, rel_key):
+    '''
+    Get the relname
+    '''
+    if rel:
+        return ENTITIES[rel]['name']['ja_jp']
+    if not prev_id or prev_id == -1:
+        return '未知'
+    prev_ship = SHIPS[prev_id]
+    return get_relname(
+        prev_ship['rels'][rel_key],
+        prev_ship['remodel']['prev']
+        if 'remodel' in prev_ship and
+        'prev' in prev_ship['remodel'] else None,
+        rel_key
+    )
+
+
+def map_lvl_up(series, ships):
+    '''
+    Map the level up
+    '''
+    for ser in series.values():
+        ser_ships = ser['ships']
+        for ser_ship in ser_ships:
+            next_blueprint = 'next_blueprint' in ser_ship and ser_ship['next_blueprint'] == 'on'
+            next_catapult = 'next_catapult' in ser_ship and ser_ship['next_catapult'] == 'on'
+            next_level = ser_ship['next_lvl'] if 'next_lvl' in ser_ship \
+                and ser_ship['next_lvl'] else 0
+            shipid = ser_ship['id']
+            _ship = ships[shipid]
+            if 'remodel' in _ship and 'next' in _ship['remodel']:
+                next_shipid = _ship['remodel']['next']
+                ships[next_shipid]['remodel_info'] = {
+                    'blueprint': next_blueprint,
+                    'catapult': next_catapult,
+                    'level': next_level
+                }
+
+
+# Map the cost item from en to zh
 COST_MAP = {
     'ammo': '弹药',
     'steel': '钢材',
@@ -166,9 +208,15 @@ def generate(wiki_ship, wctf_ship, table_dict):
     entry_str += '            ["初期装备"] = {{{}}}\n'.format(
         equip2str(wctf_ship['equip'], len(wctf_ship['slot'])))
     entry_str += '        },\n'
-    can_drop = 1 if ('can_drop' in wiki_ship and wiki_ship['can_drop']) else 0
-    can_remodel = 1 if 'after_lv' in wiki_ship and wiki_ship['after_lv'] else 0
-    can_build = 1 if 'can_construct' in wiki_ship and wiki_ship['after_lv'] else 0
+    can_drop = 1 if ('can_drop' in wiki_ship and wiki_ship['can_drop']) else -1
+    can_remodel = 0
+    if 'remodel_info' in wctf_ship:
+        can_remodel += 1
+        if 'blueprint' in wctf_ship['remodel_info'] and wctf_ship['remodel_info']['blueprint']:
+            can_remodel += 1
+        if 'catapult' in wctf_ship['remodel_info'] and wctf_ship['remodel_info']['catapult']:
+            can_remodel += 1
+    can_build = 1 if 'can_construct' in wiki_ship and wiki_ship['can_construct'] else -1
     entry_str += '        ["获得"] = {{["掉落"] = {},["改造"] = {},["建造"] = {},["时间"] = {}}},\n'.format(
         can_drop, can_remodel, can_build, wctf_ship['buildtime'])
     entry_str += '        ["消耗"] = {{["燃料"] = {},["弹药"] = {}}},\n'.format(
@@ -183,18 +231,24 @@ def generate(wiki_ship, wctf_ship, table_dict):
     entry_str += remodel2str(wctf_ship['remodel_cost'],
                              wctf_ship['remodel'], wctf_ship['base_lvl'])
     entry_str += '        ["画师"] = "{}",\n'.format(
-        ENTITIES[wctf_ship['rels']['illustrator']]['name']['ja_jp']
-        if wctf_ship['rels']['illustrator'] else '未知')
+        get_relname(wctf_ship['rels']['illustrator'], wctf_ship['remodel']['prev']
+                    if 'remodel' in wctf_ship and 'prev' in wctf_ship['remodel'] else None,
+                    'illustrator')
+    )
     entry_str += '        ["声优"] = "{}"\n'.format(
-        ENTITIES[wctf_ship['rels']['cv']]['name']['ja_jp'] if wctf_ship['rels']['cv'] else '未知')
+        get_relname(wctf_ship['rels']['cv'], wctf_ship['remodel']['prev']
+                    if 'remodel' in wctf_ship and 'prev' in wctf_ship['remodel'] else None,
+                    'cv')
+    )
     entry_str += '    },\n'
     table_dict[wiki_ship['wiki_id']] = entry_str
 
 # Convert nedb to json
-# utils.nedb2json(DB_FOLDER + 'ships.nedb', DB_FOLDER + 'ships.json')
-# utils.nedb2json(DB_FOLDER + 'ship_namesuffix.nedb', DB_FOLDER + 'ship_namesuffix.json')
-# utils.nedb2json(DB_FOLDER + 'ship_classes.nedb', DB_FOLDER + 'ship_classes.json')
-# utils.nedb2json(DB_FOLDER + 'entities.nedb', DB_FOLDER + 'entities.json')
+utils.nedb2json(DB_FOLDER + 'ships.nedb', DB_FOLDER + 'ships.json')
+utils.nedb2json(DB_FOLDER + 'ship_namesuffix.nedb', DB_FOLDER + 'ship_namesuffix.json')
+utils.nedb2json(DB_FOLDER + 'ship_classes.nedb', DB_FOLDER + 'ship_classes.json')
+utils.nedb2json(DB_FOLDER + 'entities.nedb', DB_FOLDER + 'entities.json')
+utils.nedb2json(DB_FOLDER + 'ship_series.nedb', DB_FOLDER + 'ship_series.json')
 
 
 # Load dictionary from json file
@@ -204,8 +258,22 @@ SHIP_NAME_SUFFIX = utils.jsonFile2dic(
 SHIP_CLASSES = utils.jsonFile2dic(
     DB_FOLDER + 'ship_classes.json', masterKey='id')
 ENTITIES = utils.jsonFile2dic(DB_FOLDER + 'entities.json', masterKey='id')
+SHIP_SERIES = utils.jsonFile2dic(
+    DB_FOLDER + 'ship_series.json', masterKey='id')
+
+map_lvl_up(SHIP_SERIES, SHIPS)
+
+# Fetch data from kcwiki
 WIKI_SHIPS = fetch_kcdata_json(KCDATA_JSON_URL)
-LUATABLE_STR = ''
+
+LUATABLE_STR = '''local d = {}
+------------------------
+-- 以下为舰娘数据列表 -- 
+------------------------
+
+d.shipDataTb = {
+'''
+
 LUATABLE_DICT = dict()
 
 for ship_id, ship in SHIPS.items():
@@ -217,6 +285,13 @@ SORTED_ITEMS = sorted(LUATABLE_DICT.items())
 for key, entry in SORTED_ITEMS:
     LUATABLE_STR += entry
 
-with open(OUTPUT_FOLDER + 'luatable.txt', 'w', encoding='utf_8') as fwtxt:
+LUATABLE_STR = LUATABLE_STR.rstrip(',\n')
+
+LUATABLE_STR += '''
+}
+return d
+'''
+
+with open(OUTPUT_FOLDER + 'luatable-ships.lua', 'w', encoding='utf_8') as fwtxt:
     fwtxt.write(LUATABLE_STR)
     fwtxt.close()
