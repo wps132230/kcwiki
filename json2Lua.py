@@ -1,10 +1,14 @@
+'''
+Generate lua table
+from two sources: 'zh.kcwiki.org' and 'Who calls the fleet'.
+'''
 import utils
 import requests
 
-kcDataJsonURL = 'http://kcwikizh.github.io/kcdata/ship/all.json'
+KCDATA_JSON_URL = 'http://kcwikizh.github.io/kcdata/ship/all.json'
 
 
-def fetchKCDataJson(url):
+def fetch_kcdata_json(url):
     '''
     Fetch the kcwiki data
     '''
@@ -18,8 +22,9 @@ def fetchKCDataJson(url):
     return data_json
 
 
-# Directory name of db file
-DBFOLDER = 'db/'
+# Folder name of db file and output file
+DB_FOLDER = 'db/'
+OUTPUT_FOLDER = 'output/'
 
 # Map from wctf ship id to kcwiki ship id
 STYPE_MAP = {1: 2, 2: 3, 3: 4, 4: 5, 5: 5,
@@ -35,30 +40,35 @@ WIKI_SHIPS = {}
 ENTITIES = {}
 
 
-def equip2str(equip):
+def equip2str(equips, slot_size):
     '''
-    Tranform equip list to string , eg.'a,b,c,d'
+    Tranform equips list to string , eg.'a,b,c,d'
     '''
-    formated_equip = []
-    for e in equip:
-        if isinstance(e, str):
-            formated_equip.append('-1')
+    formated_equips = ['-1' for i in range(slot_size)]
+    equip_size = len(equips)
+    for i in range(equip_size):
+        equip = equips[i]
+        if isinstance(equip, str):
+            formated_equips[i] = '-1'
         else:
-            formated_equip.append(str(e))
-    return ','.join(formated_equip)
+            formated_equips[i] = str(equip)
+    return ','.join(formated_equips)
 
 
-def slot2str(slot):
+def slot2str(slots):
     '''
     Tranform slot list to string, eg.'a,b,c,d'
     '''
-    formated_slot = []
-    for s in slot:
-        formated_slot.append(str(s))
-    return ','.join(formated_slot)
+    formated_slots = []
+    for slot in slots:
+        formated_slots.append(str(slot))
+    return ','.join(formated_slots)
 
 
 def safe_suffix(suffix, lan):
+    '''
+    Get the suffix in the safe way
+    '''
     if not suffix:
         return ''
     if not suffix in SHIP_NAME_SUFFIX or not lan in SHIP_NAME_SUFFIX[suffix]:
@@ -66,7 +76,7 @@ def safe_suffix(suffix, lan):
     return SHIP_NAME_SUFFIX[suffix][lan]
 
 
-costMap = {
+COST_MAP = {
     'ammo': '弹药',
     'steel': '钢材',
     'fuel': '燃料',
@@ -83,7 +93,7 @@ def remodel2str(remodel_cost, ship_remodel, base_lvl):
     if isinstance(remodel_cost, dict):
         for cost_type, cost in remodel_cost.items():
             remodel_cost_list.append(
-                '["{}"] = {}'.format(costMap[cost_type], cost))
+                '["{}"] = {}'.format(COST_MAP[cost_type], cost))
     remodel_cost_str = ','.join(remodel_cost_list)
     remodel_lvl_str = '["等级"] = 0'
     if ship_remodel and 'next_lvl' in ship_remodel:
@@ -98,7 +108,9 @@ def remodel2str(remodel_cost, ship_remodel, base_lvl):
     if ship_remodel and 'prev' in ship_remodel:
         remodel_before_str = '["改造前"] = "{}"'.format(
             WIKI_SHIPS[ship_remodel['prev']]['wiki_id'])
-    return '        ["改造"] = {{{},{},{},{}}},\n'.format(remodel_lvl_str, remodel_cost_str, remodel_before_str, remodel_after_str)
+    return '        ["改造"] = {{{},{},{},{}}},\n'.format(
+        remodel_lvl_str, remodel_cost_str, remodel_before_str, remodel_after_str
+    )
 
 
 def generate(wiki_ship, wctf_ship, table_dict):
@@ -119,7 +131,8 @@ def generate(wiki_ship, wctf_ship, table_dict):
     entry_str += '        ["舰种"] = {},\n'.format(
         STYPE_MAP[wctf_ship['type']])
     entry_str += '        ["级别"] = {{"{}",{}}},\n'.format(
-        SHIP_CLASSES[wctf_ship['class']]['name']['zh_cn'] + '型', wctf_ship['class_no'] if wctf_ship['class_no'] else '0')
+        SHIP_CLASSES[wctf_ship['class']]['name']['zh_cn'] + '型',
+        wctf_ship['class_no'] if wctf_ship['class_no'] else '0')
     entry_str += '        ["数据"] = {\n'
     entry_str += '            ["耐久"] = {{{},{}}},\n'.format(
         wctf_ship['stat']['hp'], wctf_ship['stat']['hp_max'])
@@ -144,15 +157,15 @@ def generate(wiki_ship, wctf_ship, table_dict):
     entry_str += '            ["射程"] = {},\n'.format(
         wctf_ship['stat']['range'])
     entry_str += '            ["稀有度"] = {}\n'.format(wctf_ship['rare'])
-    entry_str += '        }},\n'
-    entry_str += '        ["装备"] = {{\n'
+    entry_str += '        },\n'
+    entry_str += '        ["装备"] = {\n'
     slot_size = len(wctf_ship['slot'])
     entry_str += '            ["格数"] = {},\n'.format(slot_size)
     entry_str += '            ["搭载"] = {{{}}},\n'.format(
         slot2str(wctf_ship['slot']))
     entry_str += '            ["初期装备"] = {{{}}}\n'.format(
-        equip2str(wctf_ship['equip']))
-    entry_str += '        }},\n'
+        equip2str(wctf_ship['equip'], len(wctf_ship['slot'])))
+    entry_str += '        },\n'
     can_drop = 1 if ('can_drop' in wiki_ship and wiki_ship['can_drop']) else 0
     can_remodel = 1 if 'after_lv' in wiki_ship and wiki_ship['after_lv'] else 0
     can_build = 1 if 'can_construct' in wiki_ship and wiki_ship['after_lv'] else 0
@@ -161,42 +174,49 @@ def generate(wiki_ship, wctf_ship, table_dict):
     entry_str += '        ["消耗"] = {{["燃料"] = {},["弹药"] = {}}},\n'.format(
         wctf_ship['consum']['fuel'], wctf_ship['consum']['ammo'])
     entry_str += '        ["改修"] = {{["火力"] = {},["雷装"] = {},["对空"] = {},["装甲"] = {}}},\n'.format(
-        wctf_ship['modernization'][0], wctf_ship['modernization'][1], wctf_ship['modernization'][2], wctf_ship['modernization'][3])
+        wctf_ship['modernization'][0],
+        wctf_ship['modernization'][1],
+        wctf_ship['modernization'][2],
+        wctf_ship['modernization'][3])
     entry_str += '        ["解体"] = {{["燃料"] = {},["弹药"] = {},["钢材"] = {},["铝"] = {}}},\n'.format(
         wctf_ship['scrap'][0], wctf_ship['scrap'][1], wctf_ship['scrap'][2], wctf_ship['scrap'][3])
     entry_str += remodel2str(wctf_ship['remodel_cost'],
                              wctf_ship['remodel'], wctf_ship['base_lvl'])
     entry_str += '        ["画师"] = "{}",\n'.format(
-        ENTITIES[wctf_ship['rels']['illustrator']]['name']['ja_jp'] if wctf_ship['rels']['illustrator'] else '未知')
+        ENTITIES[wctf_ship['rels']['illustrator']]['name']['ja_jp']
+        if wctf_ship['rels']['illustrator'] else '未知')
     entry_str += '        ["声优"] = "{}"\n'.format(
         ENTITIES[wctf_ship['rels']['cv']]['name']['ja_jp'] if wctf_ship['rels']['cv'] else '未知')
     entry_str += '    },\n'
     table_dict[wiki_ship['wiki_id']] = entry_str
 
 # Convert nedb to json
-# utils.nedb2json(DBFOLDER + 'ships.nedb', DBFOLDER + 'ships.json')
-# utils.nedb2json(DBFOLDER + 'SHIP_NAME_SUFFIX.nedb', DBFOLDER + 'SHIP_NAME_SUFFIX.json')
-# utils.nedb2json(DBFOLDER + 'ship_classes.nedb', DBFOLDER + 'ship_classes.json')
-# utils.nedb2json(DBFOLDER + 'entities.nedb', DBFOLDER + 'entiteis.json')
+# utils.nedb2json(DB_FOLDER + 'ships.nedb', DB_FOLDER + 'ships.json')
+# utils.nedb2json(DB_FOLDER + 'ship_namesuffix.nedb', DB_FOLDER + 'ship_namesuffix.json')
+# utils.nedb2json(DB_FOLDER + 'ship_classes.nedb', DB_FOLDER + 'ship_classes.json')
+# utils.nedb2json(DB_FOLDER + 'entities.nedb', DB_FOLDER + 'entities.json')
 
 
 # Load dictionary from json file
-SHIPS = utils.jsonFile2dic(DBFOLDER + 'ships.json', masterKey='id')
+SHIPS = utils.jsonFile2dic(DB_FOLDER + 'ships.json', masterKey='id')
 SHIP_NAME_SUFFIX = utils.jsonFile2dic(
-    DBFOLDER + 'ship_namesuffix.json', masterKey='id')
+    DB_FOLDER + 'ship_namesuffix.json', masterKey='id')
 SHIP_CLASSES = utils.jsonFile2dic(
-    DBFOLDER + 'ship_classes.json', masterKey='id')
-ENTITIES = utils.jsonFile2dic(DBFOLDER + 'entities.json', masterKey='id')
-WIKI_SHIPS = fetchKCDataJson(kcDataJsonURL)
+    DB_FOLDER + 'ship_classes.json', masterKey='id')
+ENTITIES = utils.jsonFile2dic(DB_FOLDER + 'entities.json', masterKey='id')
+WIKI_SHIPS = fetch_kcdata_json(KCDATA_JSON_URL)
 LUATABLE_STR = ''
 LUATABLE_DICT = dict()
+
 for ship_id, ship in SHIPS.items():
     if ship_id in WIKI_SHIPS:
         generate(WIKI_SHIPS[ship_id], ship, LUATABLE_DICT)
 
-for key, entry in sorted(LUATABLE_DICT.items()):
+SORTED_ITEMS = sorted(LUATABLE_DICT.items())
+
+for key, entry in SORTED_ITEMS:
     LUATABLE_STR += entry
 
-with open('out.txt', 'w', encoding='utf_8') as fwtxt:
+with open(OUTPUT_FOLDER + 'luatable.txt', 'w', encoding='utf_8') as fwtxt:
     fwtxt.write(LUATABLE_STR)
     fwtxt.close()
