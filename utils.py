@@ -3,9 +3,14 @@ import json
 def nedb2json(nedbFilename, jsonFilename):
     jsonFile = open(jsonFilename, 'w', encoding='utf_8')
     with open(nedbFilename, 'r', encoding='utf_8') as nedbFile:
-        jsonFile.write('[')
-        for line in nedbFile:
-            jsonFile.write(line[:-1] + ',\n')
+        jsonFile.write('[\n')
+        line = nedbFile.readline()
+        while line:
+            in_line = line.rstrip() + ','
+            line = nedbFile.readline()
+            if not line:
+                in_line = in_line.rstrip(',')
+            jsonFile.write(in_line + '\n')
         jsonFile.write(']')
     jsonFile.close()
 
