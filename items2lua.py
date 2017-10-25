@@ -2,6 +2,7 @@
 Generate items lua table
 from 'Who calls the fleet'.
 '''
+import json
 import utils
 
 DB_FOLDER = 'db/'
@@ -28,6 +29,20 @@ SHIPS = {}
 SHIP_TYPES = {}
 SHIP_NAMESUFFIX = {}
 ITEM_TYPES = {}
+REMARKS = {}
+
+
+def load_remark(path):
+    '''
+    Load remarks from json
+    '''
+    remarks = {}
+    with open(path, 'r', encoding='utf_8') as fremark:
+        raw_data = json.load(fremark)
+        for remark_id, content in raw_data.items():
+            remarks[int(remark_id)] = content
+        fremark.close()
+    return remarks
 
 
 def get_itemname(wctf_item, lan):
@@ -229,7 +244,8 @@ def generate(wctf_item, luatable_dict):
     )
     lua_entry += '        ["装备适用"] = {{{}}},\n'.format(
         get_equipable(item_type))
-    lua_entry += '        ["备注"] = "",\n'
+    lua_entry += '        ["备注"] = "{}",\n'.format(
+        REMARKS[item_id] if item_id in REMARKS else '')
     if 'improvement' in wctf_item and wctf_item['improvement']:
         improvements = wctf_item['improvement']
         improvement_idx = 0
@@ -256,6 +272,7 @@ SHIP_NAMESUFFIX = utils.jsonFile2dic(
     DB_FOLDER + 'ship_namesuffix.json', masterKey='id')
 SHIP_TYPES = utils.jsonFile2dic(DB_FOLDER + 'ship_types.json', masterKey='id')
 ITEM_TYPES = utils.jsonFile2dic(DB_FOLDER + 'item_types.json', masterKey='id')
+REMARKS = load_remark(DB_FOLDER + 'remarks.json')
 
 LUATABLE_DICT = dict()
 LUATABLE_STR = '''local d = {}
