@@ -129,8 +129,7 @@ def gen_improvement(improvement, idx):
 \n'.format(midl_resource[0], midl_resource[1], midl_resource[2], midl_resource[3],
            '["装备数"] = {}'.format(midl_cosume_count),
            ', ["装备"] = "{}"'.format(str(midl_cosume_equip).zfill(3)) if midl_cosume_count else '')
-    extra_consume_name = ''
-    extra_cosume_count = 0
+    extra_kits = []
     if upgrade:
         upgrade_resource = improvement['resource'][3]
         upgrade_cosume_equip = ''
@@ -139,15 +138,12 @@ def gen_improvement(improvement, idx):
             upgrade_cosume_equip = upgrade_resource[4][0][0] if upgrade_resource[4][0][0] else ''
             upgrade_cosume_count = upgrade_resource[4][0][1] if upgrade_resource[4][0][1] else 0
             if len(upgrade_resource[4]) > 1:
-                extra_kit = upgrade_resource[4][1]
-                extra_consume_name = CONSUMABLE_MAP[extra_kit[0]]
-                extra_cosume_count = extra_kit[1]
+                extra_kits = upgrade_resource[4][1:]
         elif isinstance(upgrade_resource[4], int):
             upgrade_cosume_equip = upgrade_resource[4]
             upgrade_cosume_count = upgrade_resource[5]
         else:
-            extra_consume_name = CONSUMABLE_MAP[upgrade_resource[4]]
-            extra_cosume_count = upgrade_resource[5]
+            extra_kits = [[upgrade_resource[4], upgrade_resource[5]]]
         improve_entry += '            ["更新消费"] = {{["开发"] = {{{}, {}}},["改修"] = {{{}, {}}}, {}\
 {}}},\n'.format(upgrade_resource[0], upgrade_resource[1], upgrade_resource[2], upgrade_resource[3],
                 '["装备数"] = {}'.format(upgrade_cosume_count),
@@ -184,12 +180,13 @@ def gen_improvement(improvement, idx):
         req_idx += 1
     improve_entry += req_str
     improve_entry += '            },\n'
-    if extra_cosume_count:
-        improve_entry += '            ["改修备注"] = "更新时消耗<font color=red>{}</font>x{}{}"\n\
-        }},\n'.format(extra_consume_name, extra_cosume_count,
-                      '，失败时不消耗' if extra_consume_name != '熟练搭乘员' else '')
-    else:
-        improve_entry += '            ["改修备注"] = ""\n        },\n'
+    extra_remarks = []
+    for extra_kit in extra_kits:
+        extra_remarks.append('更新时消耗<font color=red>{}</font>x{}{}'.format(
+            CONSUMABLE_MAP[extra_kit[0]], extra_kit[1],
+            '，失败时不消耗' if extra_kit[0] != 'consumable_70' else ''))
+    improve_entry += '            ["改修备注"] = "{}"\n        }},\n'.format(
+        ', '.join(extra_remarks))
     return improve_entry
 
 
