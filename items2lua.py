@@ -67,7 +67,8 @@ def get_stats(stats):
         if stat_key == 'cost':
             continue
         if stat_key == 'range':
-            stat_val = RANGE_MAP[stat_val]
+            if isinstance(stat_val, int):
+                stat_val = RANGE_MAP[stat_val]
         if not stat_val:
             continue
         if stat_key == 'range' and 'distance' in stats:
