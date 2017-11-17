@@ -1,10 +1,10 @@
 all: lua json
 
 ships2lua:
-	py -3 ships2lua.py
+	python3 ships2lua.py
 
 items2lua:
-	py -3 items2lua.py
+	python3 items2lua.py
 
 lua: ships2lua items2lua
 
