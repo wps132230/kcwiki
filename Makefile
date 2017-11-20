@@ -1,4 +1,4 @@
-all: lua json
+all: lua json pack
 
 ships2lua:
 	python3 ships2lua.py
@@ -22,7 +22,7 @@ clean:
 	rm -f db/ships.json
 	rm output/*
 
-cleandbs:
+rmdbs:
 	rm -f db/entities.nedb
 	rm -f db/item_types.nedb
 	rm -f db/items.nedb
@@ -31,3 +31,6 @@ cleandbs:
 	rm -f db/ship_series.nedb
 	rm -f db/ship_types.nedb
 	rm -f db/ships.nedb
+
+pack:
+	bash pack.sh
