@@ -1,33 +1,51 @@
-all: lua json
+all: rmdbs fetch lua json pack
+
+FETCH ?= wget
+DELETE ?= rm -rf
+RUN ?= bash
+PYTHON3 ?= python3
+
+fetch:
+	@echo fetching new dbs...
+	@$(FETCH) -q -i sh/fetch_list -P db/
+	@echo new dbs fetched successfully!
 
 ships2lua:
-	py -3 ships2lua.py
+	@$(PYTHON3) ships2lua.py
 
 items2lua:
-	py -3 items2lua.py
+	@$(PYTHON3) items2lua.py
 
 lua: ships2lua items2lua
+	@echo lua files generated successfully!
 
 json:
 	lua lua2json.lua
+	@echo json files generated successfully!
 
 clean:
-	rm -f db/entities.json
-	rm -f db/item_types.json
-	rm -f db/items.json
-	rm -f db/ship_classes.json
-	rm -f db/ship_namesuffix.json
-	rm -f db/ship_series.json
-	rm -f db/ship_types.json
-	rm -f db/ships.json
-	rm output/*
+	@$(DELETE) db/entities.json
+	@$(DELETE) db/item_types.json
+	@$(DELETE) db/items.json
+	@$(DELETE) db/ship_classes.json
+	@$(DELETE) db/ship_namesuffix.json
+	@$(DELETE) db/ship_series.json
+	@$(DELETE) db/ship_types.json
+	@$(DELETE) db/ships.json
+	@$(DELETE) output/
+	@echo db files and output files cleaned!
 
-cleandbs:
-	rm -f db/entities.nedb
-	rm -f db/item_types.nedb
-	rm -f db/items.nedb
-	rm -f db/ship_classes.nedb
-	rm -f db/ship_namesuffix.nedb
-	rm -f db/ship_series.nedb
-	rm -f db/ship_types.nedb
-	rm -f db/ships.nedb
+rmdbs:
+	@$(DELETE) db/entities.nedb
+	@$(DELETE) db/item_types.nedb
+	@$(DELETE) db/items.nedb
+	@$(DELETE) db/ship_classes.nedb
+	@$(DELETE) db/ship_namesuffix.nedb
+	@$(DELETE) db/ship_series.nedb
+	@$(DELETE) db/ship_types.nedb
+	@$(DELETE) db/ships.nedb
+	@echo db files cleaned!
+
+pack:
+	@$(RUN) sh/pack.sh
+	@echo output files packed successfully!
