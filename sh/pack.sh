@@ -2,8 +2,8 @@
 
 datetime=`date +%F`
 tempdir=$datetime"/"
-packname=${datetime}".zip"
+zipfilename=${datetime}".zip"
 
 cp -r output/ $tempdir
-zip -qr $packname $tempdir
+zip -qr $zipfilename $tempdir
 rm -rf $tempdir

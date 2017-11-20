@@ -1,4 +1,7 @@
-all: lua json pack
+all: rmdbs fetch lua json pack
+
+fetch:
+	wget -i sh/fetch_list -P db/
 
 ships2lua:
 	python3 ships2lua.py
@@ -33,4 +36,4 @@ rmdbs:
 	rm -f db/ships.nedb
 
 pack:
-	bash pack.sh
+	bash sh/pack.sh
