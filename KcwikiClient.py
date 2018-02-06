@@ -1,49 +1,94 @@
 import json
-import requests
+import aiohttp
 import codecs
 import datetime
+import async_timeout
+
+from KcwikiClientException import KcwikiClientException
+
 
 class KcwikiClient:
+    kcwikiAPIUrl = 'https://zh.kcwiki.org/api.php'
+    kcdataUrl = 'https://kcwikizh.github.io/kcdata/ship/all.json'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3'
+    }
+
     def __init__(self):
-        self.zhKcWikiUrl = 'https://zh.kcwiki.moe/api.php'
-        self.loginToken = ""
-        self.editToken = ""
-        self.cookies = ""
-        self.headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:45.0) Gecko/20100101 Firefox/45.0',\
-                       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',\
-                       'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3', \
-                       'Accept-Encoding': 'gzip, deflate', \
-                       'Connection': 'keep-alive'}
+        self.loginToken = ''
+        self.editToken = ''
+        self.session = aiohttp.ClientSession()
+        self.timestamp = str(
+            datetime.datetime.now().strftime(r'%Y_%m_%d')
+        )
+        self.config = self.loadConfig()
+        self.proxy = self.config['proxy'] if 'proxy' in self.config else None
 
-        self.kcdataJsonUrl = 'http://kcwikizh.github.io/kcdata/ship/all.json'
-        self.kcdataJson = self.getKcdataJson(self.kcdataJsonUrl)
-        self.timestamp = str(datetime.datetime.now())
-        with open('config.json', 'r') as fp:
-            self.config = json.load(fp)
+    def loadConfig(self):
+        with open('config.json', 'r', encoding='utf-8') as fp:
+            return json.load(fp)
 
-    def getKcdataJson(self, url):
-        response = requests.get(url)
-        return response.json()
+    async def request(self, url, method='GET', rdata=None, timeout=10, timeout_message='连接服务器超时'):
+        with async_timeout.timeout(timeout):
+            try:
+                return await self.session.request(
+                    method=method,
+                    data=rdata, url=url,
+                    headers=self.headers,
+                    proxy=self.proxy
+                )
+            except aiohttp.ServerTimeoutError:
+                raise KcwikiClientException(timeout_message)
 
-    def login(self):
-        # login token
-        rdata = {'action': 'query', 'meta': 'tokens', 'type': 'login', 'format': 'json'}
-        response = requests.post(self.zhKcWikiUrl, rdata, headers = self.headers)
+    async def login(self):
+        rdata = {
+            'action': 'query',
+            'meta': 'tokens',
+            'type': 'login',
+            'format': 'json'
+        }
+        response = None
+        try:
+            response = await self.request(self.kcwikiAPIUrl, 'POST', rdata)
+            response = await response.json()
+        except aiohttp.client_exceptions.ContentTypeError:
+            raise KcwikiClientException('Failed to get login token!')
         if not response:
-            print "failed to get login token!"
-        self.loginToken = response.json()['query']['tokens']['logintoken']
-        self.cookies = response.cookies.get_dict()
-
-        rdata = {'action': 'login', 'format': 'json', 'lgtoken': self.loginToken}
+            raise KcwikiClientException('Failed to get login token!')
+        self.loginToken = response['query']['tokens']['logintoken']
+        rdata = {
+            'action': 'login',
+            'format': 'json',
+            'lgtoken': self.loginToken
+        }
         rdata['lgname'] = self.config['login_config']['user_name']
         rdata['lgpassword'] = self.config['login_config']['password']
-        response = requests.post(self.zhKcWikiUrl, rdata, cookies = self.cookies, headers = self.headers)
+        try:
+            response = await self.request(self.kcwikiAPIUrl, 'POST', rdata)
+            response = await response.json()
+        except aiohttp.client_exceptions.ContentTypeError:
+            raise KcwikiClientException('Failed to log in!')
         if not response:
-            print "failed to log in!"
-        self.cookies = response.cookies.get_dict()
+            raise KcwikiClientException('Failed to log in!')
+        if response['login']['result'] == 'Failed':
+            raise KcwikiClientException(response['login']['reason'])
+        rdata = {
+            'action': 'query',
+            'meta': 'tokens',
+            'format': 'json'
+        }
+        try:
+            response = await self.request(self.kcwikiAPIUrl, 'POST', rdata)
+            response = await response.json()
+        except aiohttp.client_exceptions.ContentTypeError:
+            raise KcwikiClientException('Failed to get edit token!')
+        if not response:
+            raise KcwikiClientException('Failed to get edit token!')
+        self.editToken = response['query']['tokens']['csrftoken']
+        if self.editToken == '+\\':
+            raise KcwikiClientException('Incorrect edittoken \'+\\\' !')
+        print('Login Successfully!')
 
-        rdata = {'action': 'query', 'meta': 'tokens', 'format': 'json'}
-        response = requests.post(self.zhKcWikiUrl, rdata, cookies = self.cookies, headers = self.headers)
-        if not response:
-            print "failed to get edit token!"
-        self.editToken = response.json()['query']['tokens']['csrftoken']
+    def __del__(self):
+        self.session.close()
