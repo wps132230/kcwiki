@@ -2,15 +2,16 @@ import os
 import sys
 import json
 import shutil
-import codecs
 import hashlib
 import asyncio
 
 from KcwikiClient import KcwikiClient
+from aiohttp.client_exceptions import ClientError
 from KcwikiClientException import KcwikiClientException
 
 
 class KcwikiVoiceClient(KcwikiClient):
+    # http://125.6.187.229/kcs/sound/
     voiceCacheBaseUrl = 'http://125.6.187.229/kcs/sound/'
     vcKey = [
         604825, 607300, 613847, 615318, 624009, 631856, 635451, 637218, 640529, 643036, 652687,
@@ -55,10 +56,9 @@ class KcwikiVoiceClient(KcwikiClient):
     }
 
     def __init__(self):
-        KcwikiClient.__init__(self)
-
+        super().__init__()
         self.kcdataJson = None
-
+        self.voiceType = self.config['voice_config']['type']
         self.seasonalSuffix = self.config['voice_config']['seasonal_suffix']
         self.newShipId = self.config['voice_config']['new_ship_id']
         self.updateDate = self.config['voice_config']['update_date']
@@ -97,9 +97,15 @@ class KcwikiVoiceClient(KcwikiClient):
         with open('subtitlesJp.json', 'r', encoding='utf-8') as fp:
             self.subtitlesJp = json.load(fp)
 
-    async def reqeustKcdataJson(self):
-        response = await self.request(self.kcdataUrl)
-        self.kcdataJson = await response.json()
+        self.retryCount = 0
+
+    async def loadKCData(self):
+        if self.kcdataJson:
+            return
+        print('loading kcdata.')
+        async with self.request(self.kcdataUrl, timeout=None) as resp:
+            self.kcdataJson = await resp.json()
+        print('kcdata is updated!')
 
     def getVoiceCacheUrl(self, shipId, voiceId, filename):
         voiceCacheId = (shipId + 7) * 17 * \
@@ -107,6 +113,10 @@ class KcwikiVoiceClient(KcwikiClient):
         return '{}kc{}/{}.mp3'.format(self.voiceCacheBaseUrl, filename, voiceCacheId)
 
     def isUpdate(self, modifiedDate):
+        if self.voiceType == 'new_ship':
+            return True
+        if not modifiedDate:
+            return False
         modifiedDateSP = modifiedDate.split()
         if (modifiedDateSP[1] in self.updateDate[0]) and \
             (modifiedDateSP[2] == self.updateDate[1]) and \
@@ -115,116 +125,255 @@ class KcwikiVoiceClient(KcwikiClient):
         else:
             return False
 
-    async def downloadVoiceById(self, shipId, wikiId, voiceId, voiceCacheUrl):
-        response = await self.request(voiceCacheUrl)
+    async def downloadVoiceById(self, shipInfo, voiceId, voiceCacheUrl):
+        shipId = shipInfo['id']
+        wikiId = shipInfo['wiki_id']
         wikiFilename = None
-        sha256Hash = None
-        if response and self.isUpdate(response.headers['Last-Modified']):
-            if (shipId not in self.newShipId) and (self.config['voice_config']['type'] == 'seasonal'):
-                wikiFilename = '{}-{}{}.mp3'.format(
-                    wikiId, self.voiceId2Name[voiceId], self.seasonalSuffix
-                )
+        md5Hash = hashlib.md5()
+        last_modified = None
+        resp = None
+        try:
+            resp = await self.request(voiceCacheUrl)
+            if resp.status != 200:
+                return 0, shipInfo, voiceId, voiceCacheUrl, None, None
+
+            if 'last-modified' in resp.headers:
+                last_modified = resp.headers['last-modified']
+            elif 'Last-Modified' in resp.headers:
+                last_modified = resp.headers['Last-Modified']
+
+            if self.isUpdate(last_modified):
+                if (shipId not in self.newShipId) and (self.voiceType == 'seasonal'):
+                    wikiFilename = '{}-{}{}.mp3'.format(
+                        wikiId, self.voiceId2Name[voiceId], self.seasonalSuffix
+                    )
+                else:
+                    wikiFilename = '{}-{}.mp3'.format(
+                        wikiId, self.voiceId2Name[voiceId]
+                    )
+                with open(self.voiceDownloadFolder + '/' + wikiFilename, 'wb') as fp:
+                    chunk = await resp.content.readany()
+                    while chunk:
+                        fp.write(chunk)
+                        md5Hash.update(chunk)
+                        chunk = await resp.content.readany()
+                self.downloadVoiceLog.write('|{}|'.format(voiceId))
+                return 1, shipInfo, voiceId, voiceCacheUrl, wikiFilename, md5Hash.hexdigest()
+        except Exception:
+            self.retryCount += 1
+            return 2, shipInfo, voiceId, voiceCacheUrl, wikiFilename, md5Hash.hexdigest()
+        finally:
+            if resp:
+                resp.close()
+        return 0, shipInfo, voiceId, voiceCacheUrl, wikiFilename, md5Hash.hexdigest()
+
+    def downloadCallback(self, future):
+        result, shipInfo, voiceId, voiceCacheUrl, wikiFilename, md5Hash = future.result()
+        future.cancel()
+        voiceId = str(voiceId)
+        shipId = str(shipInfo['id'])
+        chineseName = shipInfo['chinese_name']
+        stype = shipInfo['stype']
+        wikiId = shipInfo['wiki_id']
+        if result == 1:
+            if shipId not in self.voiceDataJson.keys():
+                self.voiceDataJson[shipId] = \
+                    {
+                    'chinese_name': chineseName,
+                    'stype': stype,
+                    'wiki_id': wikiId,
+                    'voice_status': {
+                        voiceId: 'download'
+                    },
+                    'voice_duplicate': {},
+                    'voice_upload_info': {},
+                    'voice_hash_info': {
+                        voiceId: md5Hash
+                    },
+                    'voice_cache_url': {
+                        voiceId: voiceCacheUrl
+                    },
+                    'voice_wiki_filename': {
+                        voiceId: wikiFilename
+                    }
+                }
             else:
-                wikiFilename = '{}-{}.mp3'.format(
-                    wikiId, self.voiceId2Name[voiceId]
-                )
-            data = await response.read()
-            sha256Hash = hashlib.sha256(data).hexdigest()
-            with open(self.voiceDownloadFolder + '/' + wikiFilename, 'wb') as f:
-                f.write(data)
-            self.downloadVoiceLog.write('|{}|'.format(voiceId))
-            return True, str(shipId), str(voiceId), voiceCacheUrl, wikiFilename, sha256Hash
-        return False, str(shipId), str(voiceId), voiceCacheUrl, wikiFilename, sha256Hash
+                self.voiceDataJson[shipId]['voice_status'].\
+                    update({voiceId: 'download'})
+                self.voiceDataJson[shipId]['voice_cache_url'].\
+                    update({voiceId: voiceCacheUrl})
+                self.voiceDataJson[shipId]['voice_wiki_filename'].\
+                    update({voiceId: wikiFilename})
+                self.voiceDataJson[shipId]['voice_hash_info'].\
+                    update({voiceId: md5Hash})
+                sys.stdout.write('{}(y)  '.format(voiceId))
+        elif result == 2:
+            if shipId not in self.voiceDataJson.keys():
+                self.voiceDataJson[shipId] = \
+                    {
+                    'chinese_name': chineseName,
+                    'stype': stype,
+                    'wiki_id': wikiId,
+                    'voice_status': {
+                        voiceId: 'retry'
+                    },
+                    'voice_duplicate': {},
+                    'voice_upload_info': {},
+                    'voice_hash_info': {
+                        voiceId: md5Hash
+                    },
+                    'voice_cache_url': {
+                        voiceId: voiceCacheUrl
+                    },
+                    'voice_wiki_filename': {
+                        voiceId: wikiFilename
+                    }
+                }
+            else:
+                self.voiceDataJson[shipId]['voice_status'].\
+                    update({voiceId: 'retry'})
+                self.voiceDataJson[shipId]['voice_cache_url'].\
+                    update({voiceId: voiceCacheUrl})
+                self.voiceDataJson[shipId]['voice_wiki_filename'].\
+                    update({voiceId: wikiFilename})
+                self.voiceDataJson[shipId]['voice_hash_info'].\
+                    update({voiceId: md5Hash})
+                sys.stdout.write('{}(-)  '.format(voiceId))
+        else:
+            try:
+                self.voiceDataJson[shipId]['voice_status'].pop(voiceId)
+                self.voiceDataJson[shipId]['voice_cache_url'].pop(voiceId)
+                self.voiceDataJson[shipId]['voice_wiki_filename'].pop(voiceId)
+                self.voiceDataJson[shipId]['voice_hash_info'].pop(voiceId)
+            except KeyError:
+                pass
+            sys.stdout.write('{}(x)  '.format(voiceId))
+        sys.stdout.flush()
 
     async def downloadVoice(self):
-        self.downloadVoiceLog = codecs.open(
-            'log_download_voice_' + self.timestamp + '.log', 'w', 'utf-8'
+        await self.loadKCData()
+        self.downloadVoiceLog = open(
+            'log_download_voice_' + self.timestamp + '.log', 'w', encoding='utf-8'
         )
         num = 1
         for ship in self.kcdataJson:
+            sys.stdout.flush()
             shipId = ship['id']
+            if num > self.thresholdUpForDebug:
+                break
             if num < self.thresholdLowForDebug:
                 num += 1
                 continue
-            if num > self.thresholdUpForDebug:
-                break
-            if len(self.downloadIncludeId) > 0 and shipId not in self.downloadIncludeId:
+            chineseName = ship['chinese_name'] if 'chinese_name' in ship and\
+                ship['chinese_name'] else None
+            if not chineseName:
+                sys.stdout.write('\nNo.{}-未命名 Skip'.format(num))
+                num += 1
                 continue
-            if len(self.downloadExcludeId) > 0 and shipId in self.downloadExcludeId:
+            if (len(self.downloadIncludeId) > 0 and shipId not in self.downloadIncludeId) or\
+                    (len(self.downloadExcludeId) > 0 and shipId in self.downloadExcludeId) or\
+                    shipId > self.shipIdThreshold:
+                sys.stdout.write('\nNo.{}-{} Skip'.format(num, chineseName))
+                num += 1
                 continue
-            if shipId > self.shipIdThreshold:
-                continue
+
+            if self.voiceType == 'seasonal':
+                if shipId in self.newShipId:
+                    sys.stdout.write(
+                        '\nNo.{}-{} Skip'.format(num, chineseName))
+                    num += 1
+                    continue
+            elif self.voiceType == 'new_ship':
+                if shipId not in self.newShipId:
+                    sys.stdout.write(
+                        '\nNo.{}-{} Skip'.format(num, chineseName))
+                    num += 1
+                    continue
 
             filename = ship['filename']
-            chineseName = ship['chinese_name']
-            stype = ship['stype']
-            wikiId = ship['wiki_id']
-            if not chineseName:
-                continue
 
             printResult = '{}({}): '.format(shipId, chineseName)
-            print('No.{}-{}'.format(num, printResult), end='')
+            sys.stdout.write('\nNo.{}-{}'.format(num, printResult))
+            sys.stdout.flush()
+            num += 1
             self.downloadVoiceLog.write(printResult)
+            self.downloadVoiceLog.flush()
             downloadTasks = []
             for voiceId in self.voiceIdRange:
+                _shipId = str(shipId)
+                _voiceId = str(voiceId)
+                if _shipId in self.voiceDataJson and\
+                        _voiceId in self.voiceDataJson[_shipId] and\
+                        self.voiceDataJson[_shipId]['voice_status'][_voiceId] == 'download':
+                    self.downloadVoiceLog.write('|{}|'.format(voiceId))
+                    sys.stdout.write('{}(o)  '.format(voiceId))
+                    sys.stdout.flush()
+                    continue
                 voiceCacheUrl = self.getVoiceCacheUrl(
                     shipId, voiceId, filename
                 )
-                downloadTasks.append(
-                    asyncio.ensure_future(self.downloadVoiceById(
-                        shipId, wikiId, voiceId, voiceCacheUrl
-                    ))
-                )
-            dones = (await asyncio.wait(downloadTasks))[0]
-            for task in dones:
-                result, shipId, voiceId, voiceCacheUrl, wikiFilename, sha256Hash = task.result()
-                voiceId = str(voiceId)
-                if result:
-                    if shipId not in self.voiceDataJson.keys():
-                        self.voiceDataJson[shipId] = \
-                            {
-                                'chinese_name': chineseName,
-                                'stype': stype,
-                                'wiki_id': wikiId,
-                                'voice_status': {
-                                    voiceId: 'download'
-                                },
-                                'voice_duplicate': {},
-                                'voice_upload_info': {},
-                                'voice_hash_info': {
-                                    voiceId: sha256Hash
-                                },
-                                'voice_cache_url': {
-                                    voiceId: voiceCacheUrl
-                                },
-                                'voice_wiki_filename': {
-                                    voiceId: wikiFilename
-                                }
-                        }
-                    else:
-                        self.voiceDataJson[shipId]['voice_status'].\
-                            update({voiceId: 'download'})
-                        self.voiceDataJson[shipId]['voice_cache_url'].\
-                            update({voiceId: voiceCacheUrl})
-                        self.voiceDataJson[shipId]['voice_wiki_filename'].\
-                            update({voiceId: wikiFilename})
-                        self.voiceDataJson[shipId]['voice_hash_info'].\
-                            update({voiceId: sha256Hash})
-                    print('{}(y)  '.format(voiceId), end='')
-                else:
-                    print('{}(x)  '.format(voiceId), end='')
-            print()
+                task = asyncio.ensure_future(self.downloadVoiceById(
+                    ship, voiceId, voiceCacheUrl
+                ))
+                task.add_done_callback(self.downloadCallback)
+                downloadTasks.append(task)
+            if downloadTasks:
+                await asyncio.gather(*downloadTasks, return_exceptions=True)
+                with open(self.voiceDataJsonFile, 'w', encoding='utf-8') as fp:
+                    json.dump(self.voiceDataJson, fp,
+                              ensure_ascii=False, indent=4)
             self.downloadVoiceLog.write('\n')
-            num = num + 1
+            self.downloadVoiceLog.flush()
         self.downloadVoiceLog.close()
-        with open(self.voiceDataJsonFile, 'w', encoding='utf-8') as fp:
-            json.dump(self.voiceDataJson, fp, ensure_ascii=False, indent=4)
         shutil.copy(
             self.voiceDataJsonFile,
             self.voiceDataJsonFile[:-5] + '_download.json'
         )
+        if self.retryCount:
+            print('\n共发生了{}处错误，部分下载需要重新获取。'.format(self.retryCount))
+            print('请输入 python voice_bot.py -f 或者 python voice_bot.py fix 来修复。')
 
-    def removeDuplicatedVoice(self):
+    async def fixRetryVoice(self):
+        await self.loadKCData()
+        self.downloadVoiceLog = open(
+            'log_download_voice_' + self.timestamp + '.log', 'w', encoding='utf-8'
+        )
+        for ship in self.kcdataJson:
+            shipId = str(ship['id'])
+            if shipId in self.voiceDataJson:
+                chineseName = self.voiceDataJson[shipId]['chinese_name']
+                printResult = '{}({}): '.format(shipId, chineseName)
+                sys.stdout.write('\nNo.{}-{} '.format(shipId, chineseName))
+                sys.stdout.flush()
+                self.downloadVoiceLog.write(printResult)
+                downloadTasks = []
+                for voiceId in self.voiceDataJson[shipId]['voice_status']:
+                    voice_status = self.voiceDataJson[shipId]['voice_status'][voiceId]
+                    if voice_status != 'retry':
+                        continue
+                    voiceCacheUrl = self.voiceDataJson[shipId]['voice_cache_url'][voiceId]
+                    task = asyncio.ensure_future(self.downloadVoiceById(
+                        ship, int(voiceId), voiceCacheUrl
+                    ))
+                    task.add_done_callback(self.downloadCallback)
+                    downloadTasks.append(task)
+                if downloadTasks:
+                    await asyncio.gather(*downloadTasks, return_exceptions=True)
+                    with open(self.voiceDataJsonFile, 'w', encoding='utf-8') as fp:
+                        json.dump(self.voiceDataJson, fp,
+                                  ensure_ascii=False, indent=4)
+                self.downloadVoiceLog.write('\n')
+                self.downloadVoiceLog.flush()
+        shutil.copy(
+            self.voiceDataJsonFile,
+            self.voiceDataJsonFile[:-5] + '_fix.json'
+        )
+        if self.retryCount:
+            print('\n共发生了{}处错误，部分下载需要重新获取。'.format(self.retryCount))
+            print('请输入 python voice_bot.py -f 或者 python voice_bot.py fix 来修复。')
+
+    async def removeDuplicatedVoice(self):
+        await self.loadKCData()
         for ship in self.kcdataJson:
             shipId = str(ship['id'])
             if shipId in self.voiceDataJson:
@@ -244,15 +393,16 @@ class KcwikiVoiceClient(KcwikiClient):
             json.dump(self.voiceDataJson, fp, ensure_ascii=False, indent=4)
         shutil.copy(
             self.voiceDataJsonFile,
-            self.voiceDataJsonFile[:-5] + '_fixed.json'
+            self.voiceDataJsonFile[:-5] + '_rds.json'
         )
 
     async def uploadVoice(self):
-        self.uploadVoiceLog = codecs.open(
-            'log_upload_voice_' + self.timestamp + '.log', 'w', 'utf-8'
+        await self.loadKCData()
+        self.uploadVoiceLog = open(
+            'log_upload_voice_' + self.timestamp + '.log', 'w', encoding='utf-8'
         )
         await self.login()
-        totalNum = 0
+        num = 0
         for shipId in self.voiceDataJson:
             if len(self.downloadIncludeId) > 0 and\
                     int(shipId) not in self.downloadIncludeId:
@@ -265,7 +415,7 @@ class KcwikiVoiceClient(KcwikiClient):
                 if self.voiceDataJson[shipId]['voice_status'][voiceId] != 'download':
                     continue
                 wikiFilename = self.voiceDataJson[shipId]['voice_wiki_filename'][voiceId]
-                totalNum += 1
+                num += 1
                 rdata = {
                     'action': 'upload',
                     'token': self.editToken,
@@ -273,44 +423,48 @@ class KcwikiVoiceClient(KcwikiClient):
                     'filename': wikiFilename,
                     'file': open(self.voiceDownloadFolder + '/' + wikiFilename, 'rb')
                 }
-                response = await self.request(self.kcwikiAPIUrl, 'POST', rdata)
-                response_json = await response.json()
-                result = response_json['upload']['result']
-                if result == 'Success':
-                    resultPrint = '{}({}) : {} -> Success'.format(
-                        shipId, chineseName, wikiFilename
-                    )
-                    self.uploadVoiceLog.write(
-                        '{} : {} -> Success\n'.format(shipId, wikiFilename)
-                    )
-                    self.voiceDataJson[shipId]['voice_status'][voiceId] = 'upload'
-                else:
-                    resultPrint = '{}({}) : {} -> Failed'.format(
-                        shipId, chineseName, wikiFilename
-                    )
-                    response_text = await response.text()
-                    print('{}\t{}\n\t{}'.format(
-                        totalNum, resultPrint, response_text
-                    ))
-                    self.uploadVoiceLog.write('{}\n\t{}\n'.format(
-                        resultPrint, json.dumps(response_json)
-                    ))
-                    if 'warnings' in response_json['upload']:
-                        if 'duplicate' in response_json['upload']['warnings']:
-                            duplicatedWikiFilenames = response_json['upload']['warnings']['duplicate']
-                            self.voiceDataJson[shipId]['voice_status'][voiceId] = 'duplicate_2'
-                            self.voiceDataJson[shipId]['voice_duplicate'].\
-                                update({voiceId: duplicatedWikiFilenames})
-                        else:
-                            self.voiceDataJson[shipId]['voice_status'][voiceId] = 'warnings'
-                            self.voiceDataJson[shipId]['voice_upload_info'].\
-                                update({voiceId: response_json['upload']})
+                async with self.request(self.kcwikiAPIUrl, 'POST', rdata) as resp:
+                    resp_json = await resp.json()
+                    result = resp_json['upload']['result']
+                    if result == 'Success':
+                        resultPrint = '{}({}) : {} -> Success'.format(
+                            shipId, chineseName, wikiFilename
+                        )
+                        self.uploadVoiceLog.write(
+                            '{}({}) : {} -> Success\n'.
+                            format(shipId, chineseName, wikiFilename)
+                        )
+                        self.uploadVoiceLog.flush()
+                        self.voiceDataJson[shipId]['voice_status'][voiceId] = 'upload'
                     else:
-                        self.voiceDataJson[shipId]['voice_status'][voiceId] = 'errors'
-                        self.voiceDataJson[shipId]['voice_upload_info'].\
-                            update({voiceId: response_json['upload']})
-        with open(self.voiceDataJsonFile, 'w', encoding='utf-8') as fp:
-            json.dump(self.voiceDataJson, fp, ensure_ascii=False, indent=4)
+                        resultPrint = '{}({}) : {} -> Failed'.format(
+                            shipId, chineseName, wikiFilename
+                        )
+                        resp_text = await resp.text()
+                        print('{}\t{}\n\t{}'.format(
+                            num, resultPrint, resp_text
+                        ))
+                        self.uploadVoiceLog.write('{}\n\t{}\n'.format(
+                            resultPrint, json.dumps(resp_json)
+                        ))
+                        self.uploadVoiceLog.flush()
+                        if 'warnings' in resp_json['upload']:
+                            if 'duplicate' in resp_json['upload']['warnings']:
+                                duplicatedWikiFilenames = resp_json['upload']['warnings']['duplicate']
+                                self.voiceDataJson[shipId]['voice_status'][voiceId] = 'duplicate_2'
+                                self.voiceDataJson[shipId]['voice_duplicate'].\
+                                    update({voiceId: duplicatedWikiFilenames})
+                            else:
+                                self.voiceDataJson[shipId]['voice_status'][voiceId] = 'warnings'
+                                self.voiceDataJson[shipId]['voice_upload_info'].\
+                                    update({voiceId: resp_json['upload']})
+                        else:
+                            self.voiceDataJson[shipId]['voice_status'][voiceId] = 'errors'
+                            self.voiceDataJson[shipId]['voice_upload_info'].\
+                                update({voiceId: resp_json['upload']})
+                    with open(self.voiceDataJsonFile, 'w', encoding='utf-8') as fp:
+                        json.dump(self.voiceDataJson, fp,
+                                  ensure_ascii=False, indent=4)
         shutil.copy(
             self.voiceDataJsonFile,
             self.voiceDataJsonFile[:-5] + '_upload.json'
@@ -344,7 +498,7 @@ class KcwikiVoiceClient(KcwikiClient):
             if not shipDict:
                 continue
             wikiCodeTitle = '==={}===\n'.format(self.stype2Name[stype])
-            print(wikiCodeTitle, end='')
+            print(wikiCodeTitle)
             wikiCodeStr += wikiCodeTitle
             wikiCodeStr += '{{台词翻译表/页头|type=seasonal}}\n'
             sortedUnitList = sorted(shipDict.items(), key=lambda d: d[0])
@@ -415,7 +569,7 @@ class KcwikiVoiceClient(KcwikiClient):
             if len(self.downloadExcludeId) > 0 and int(shipId) in self.downloadExcludeId:
                 continue
             chineseName = self.voiceDataJson[shipId]['chinese_name']
-            print('New Ship' + chineseName)
+            print('New Ship {}'.format(chineseName))
             wikiCodeStr = ''
             wikiCodeStr += '==={}===\n'.format(chineseName)
             wikiCodeStr += '{{台词翻译表/页头}}\n'
@@ -434,13 +588,14 @@ class KcwikiVoiceClient(KcwikiClient):
                         voiceId not in self.subtitlesZh \
                         else self.subtitlesZh[shipId][voiceId]
                     wikiCodeStr += self.generateUnitWikiCodeNewship(
-                        voiceId, wikiFilename, subtitleJp, subtitleZh
+                        intVoiceId, wikiFilename, subtitleJp, subtitleZh
                     )
             wikiCodeStr += '{{页尾}}\n\n'
             with open('wikicode_' + shipId + '_' + chineseName, 'w', encoding='utf-8') as fp:
                 fp.write(wikiCodeStr)
 
-    def generateWikiCode(self):
+    async def generateWikiCode(self):
+        await self.loadKCData()
         if self.config['voice_config']['type'] == 'seasonal':
             self.generateWikiCodeSeasonal()
         if self.config['voice_config']['type'] == 'new_ship':

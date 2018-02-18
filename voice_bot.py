@@ -3,32 +3,49 @@ import asyncio
 
 from KcwikiVoiceClient import KcwikiVoiceClient
 
-voiceClient = KcwikiVoiceClient()
+
+def printHelp():
+    print('''kcwiki_bot - kcwiki语音更新助手
+
+用法:
+
+    python voice_bot.py [command]
+
+命令:
+
+\tfix(f)\t\t修复更新语音下载
+\tdownload(d)\t查看更新语音并下载
+\tupload(u)\t上传语音到zh.kcwiki.moe（必须已下载语音文件）
+\tgenwiki(g)\t生成wikicode
+
+使用 "python voice_bot.py help" 查看帮助。
+''')
 
 
 async def main():
-    await voiceClient.reqeustKcdataJson()
+    voiceClient = KcwikiVoiceClient()
 
-    if len(sys.argv) == 1:
-        await voiceClient.downloadVoice()
-        voiceClient.removeDuplicatedVoice()
-        await voiceClient.uploadVoice()
-        voiceClient.generateWikiCode()
-
-    elif len(sys.argv) == 2:
-        if sys.argv[1] == 'download' or sys.argv[1] == '-d':
-            print('-' * 16 + ' download started ' + '-' * 16)
+    if len(sys.argv) == 2:
+        if sys.argv[1] == 'download' or sys.argv[1] == 'd':
+            print('start to download.')
             await voiceClient.downloadVoice()
-            print('-' * 16 + ' download finished ' + '-' * 16)
-        elif sys.argv[1] == 'upload' or sys.argv[1] == '-u':
-            print('-' * 16 + ' upload started ' + '-' * 16)
-            voiceClient.removeDuplicatedVoice()
+        elif sys.argv[1] == 'fix' or sys.argv[1] == 'f':
+            print('start fixing.')
+            await voiceClient.fixRetryVoice()
+        elif sys.argv[1] == 'upload' or sys.argv[1] == 'u':
+            print('start to upload.')
+            await voiceClient.removeDuplicatedVoice()
             await voiceClient.uploadVoice()
-            print('-' * 16 + ' upload finished ' + '-' * 16)
-        elif sys.argv[1] == 'genwiki' or sys.argv[1] == '-g':
-            print('-' * 16 + ' generate wiki code started' + '-' * 16)
-            voiceClient.generateWikiCode()
-            print('-' * 16 + ' generate wiki code finished' + '-' * 16)
+        elif sys.argv[1] == 'genwiki' or sys.argv[1] == 'g':
+            print('start to generate wikicode.')
+            await voiceClient.generateWikiCode()
+        elif sys.argv[1] == 'help' or sys.argv[1] == 'h':
+            printHelp()
+        else:
+            printHelp()
+        print()
+    else:
+        printHelp()
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
