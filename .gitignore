@@ -9,6 +9,8 @@ voice_*/
 
 # Json files, except config.json
 voice_*.json
+subtitiles_*.json
+config.json
 
 # Log files
 *.log
@@ -25,3 +27,6 @@ test.py
 # vs code stuff
 .vscode
 
+# Python3 venv
+
+venv/

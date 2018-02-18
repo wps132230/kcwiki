@@ -1,4 +1,5 @@
 ## kcwiki_bot 使用说明
+
 kcwiki_bot 是指一系列用于和zh.kcwiki.org交互的小工具（客户端），当前包括：
 * voice_bot：用于舰娘语音的上传和生成语音相关wikicode
 
@@ -7,7 +8,7 @@ kcwiki_bot 是指一系列用于和zh.kcwiki.org交互的小工具（客户端�
 * login_config:
 	* user_name: zh.kcwiki.moe 用户名
 	* password: zh.kcwiki.moe 密码
-* proxy: 代理设置，不使用代理请删除改字段
+* proxy: http代理（只支持http代理！）设置，不使用代理请删除该字段或用空字符串代替
 * voice_config:
 	* type: ''seasonal'' 表示季节性语音，''new_ship''表示追加新舰娘语音
     * new_ship_id: 在 type 为''seasonal''时，可以在此处添加id，用以区分季节性语音和新追加舰娘语音
@@ -20,25 +21,35 @@ kcwiki_bot 是指一系列用于和zh.kcwiki.org交互的小工具（客户端�
     * is_include_enemy": 是否查看深海舰队语音的更新
 
 #### 使用方法
-查看更新语音并下载，上传语音到zh.kcwiki.moe，生成wikicode一条龙服务：
+
+查看更新语音下载
 ``` shell
-python voice_bot.py
-```
-仅查看更新语音并下载
-``` shell
-python voice_bot.py -d
+python voice_bot.py d
 or python voice_bot.py download
 ```
 
-仅上传语音到zh.kcwiki.moe（必须已下载语音文件）
+修复更新语音并下载
 ``` shell
-python voice_bot.py -u
+python voice_bot.py f
+or python voice_bot.py fix
+```
+
+上传语音到zh.kcwiki.moe（必须已下载语音文件）
+``` shell
+python voice_bot.py u
 or python voice_bot.py upload
 ```
 
-仅生成wikicode
+生成wikicode
 ``` shell
-python voice_bot.py -g
+python voice_bot.py g
 or python voice_bot.py genwiki
 ```
+
+查看使用帮助
+```shell
+python voice_bot.py h
+or python voice_bot.py help
+```
+
 如果文件夹下有"subtitlesJp.json"和"subtitlesZh.json"，会自动将字幕合并到生成的wikicode中。
