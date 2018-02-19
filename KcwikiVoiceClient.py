@@ -331,7 +331,7 @@ class KcwikiVoiceClient(KcwikiClient):
         )
         if self.retryCount:
             print('\n共发生了{}处错误，部分下载需要重新获取。'.format(self.retryCount))
-            print('请输入 python voice_bot.py -f 或者 python voice_bot.py fix 来修复。')
+            print('请输入 python voice_bot.py f 或者 python voice_bot.py fix 来修复。')
 
     async def fixRetryVoice(self):
         await self.loadKCData()
@@ -370,7 +370,7 @@ class KcwikiVoiceClient(KcwikiClient):
         )
         if self.retryCount:
             print('\n共发生了{}处错误，部分下载需要重新获取。'.format(self.retryCount))
-            print('请输入 python voice_bot.py -f 或者 python voice_bot.py fix 来修复。')
+            print('请输入 python voice_bot.py f 或者 python voice_bot.py fix 来修复。')
 
     async def removeDuplicatedVoice(self):
         await self.loadKCData()
