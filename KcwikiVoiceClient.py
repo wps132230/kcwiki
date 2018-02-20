@@ -331,7 +331,7 @@ class KcwikiVoiceClient(KcwikiClient):
         )
         if self.retryCount:
             print('\n共发生了{}处错误，部分下载需要重新获取。'.format(self.retryCount))
-            print('请输入 python voice_bot.py -f 或者 python voice_bot.py fix 来修复。')
+            print('请输入 python voice_bot.py f 或者 python voice_bot.py fix 来修复。')
 
     async def fixRetryVoice(self):
         await self.loadKCData()
@@ -350,6 +350,9 @@ class KcwikiVoiceClient(KcwikiClient):
                 for voiceId in self.voiceDataJson[shipId]['voice_status']:
                     voice_status = self.voiceDataJson[shipId]['voice_status'][voiceId]
                     if voice_status != 'retry':
+                        sys.stdout.write('{}(y)  '.format(voiceId))
+                        sys.stdout.flush()
+                        self.downloadVoiceLog.write('|{}|'.format(voiceId))
                         continue
                     voiceCacheUrl = self.voiceDataJson[shipId]['voice_cache_url'][voiceId]
                     task = asyncio.ensure_future(self.downloadVoiceById(
@@ -370,7 +373,7 @@ class KcwikiVoiceClient(KcwikiClient):
         )
         if self.retryCount:
             print('\n共发生了{}处错误，部分下载需要重新获取。'.format(self.retryCount))
-            print('请输入 python voice_bot.py -f 或者 python voice_bot.py fix 来修复。')
+            print('请输入 python voice_bot.py f 或者 python voice_bot.py fix 来修复。')
 
     async def removeDuplicatedVoice(self):
         await self.loadKCData()
@@ -518,7 +521,7 @@ class KcwikiVoiceClient(KcwikiClient):
                     ship[1]['wiki_id'], ship[1]['chinese_name'], ship[0], subtitleJp, subtitleZh
                 )
             wikiCodeStr += '{{页尾}}\n\n'
-        with open('wikicode_' + self.seasonalSuffix + wikiCodeSuffix, 'w', encoding='utf-8') as fp:
+        with open('wikicode_' + self.seasonalSuffix + wikiCodeSuffix + '.txt', 'w', encoding='utf-8') as fp:
             fp.write(wikiCodeStr)
 
     def generateWikiCodeSeasonal(self):
@@ -591,7 +594,7 @@ class KcwikiVoiceClient(KcwikiClient):
                         intVoiceId, wikiFilename, subtitleJp, subtitleZh
                     )
             wikiCodeStr += '{{页尾}}\n\n'
-            with open('wikicode_' + shipId + '_' + chineseName, 'w', encoding='utf-8') as fp:
+            with open('wikicode_' + shipId + '_' + chineseName + '.txt', 'w', encoding='utf-8') as fp:
                 fp.write(wikiCodeStr)
 
     async def generateWikiCode(self):

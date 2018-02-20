@@ -9,8 +9,7 @@ voice_*/
 
 # Json files, except config.json
 voice_*.json
-subtitiles_*.json
-config.json
+subtitles*.json
 
 # Log files
 *.log
