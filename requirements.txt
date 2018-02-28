@@ -3,4 +3,4 @@
 
 # KcwikiClient.py: 2,5
 # KcwikiVoiceClient.py: 9
-aiohttp == 3.0.1
+aiohttp == 3.0.5
