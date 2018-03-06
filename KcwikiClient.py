@@ -22,7 +22,10 @@ class KcwikiClient:
         )
         self.config = self.loadConfig()
         self.proxy = self.config['proxy'] if 'proxy' in self.config and self.config['proxy'] else None
-        self.connector = aiohttp.TCPConnector(force_close=True, verify_ssl=False, use_dns_cache=True)
+        self.connector = aiohttp.TCPConnector(
+            verify_ssl=False,
+            use_dns_cache=True
+        )
         self.session = aiohttp.ClientSession(
             connector=self.connector, headers=headers
         )

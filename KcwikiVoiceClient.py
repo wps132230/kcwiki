@@ -116,7 +116,7 @@ class KcwikiVoiceClient(KcwikiClient):
         if self.voiceType == 'new_ship':
             return True
         if not modifiedDate:
-            return False
+            return True
         modifiedDateSP = modifiedDate.split()
         if (modifiedDateSP[1] in self.updateDate[0]) and \
             (modifiedDateSP[2] == self.updateDate[1]) and \
