@@ -4,6 +4,7 @@ import json
 import shutil
 import hashlib
 import asyncio
+import datetime
 
 from KcwikiClient import KcwikiClient
 from aiohttp.client_exceptions import ClientError
@@ -54,6 +55,9 @@ class KcwikiVoiceClient(KcwikiClient):
         12: '超弩級戦艦', 13: '潜水艦', 14: '潜水空母', 15: '補給艦(敵のほう)', 16: '水上機母艦',
         17: '揚陸艦', 18: '装甲空母', 19: '工作艦', 20: '潜水母艦', 21: '練習巡洋艦', 22: '補給艦'
     }
+
+    GMT_FORMAT = '%a, %d %b %Y %H:%M:%S GMT'
+    BOT_FORMAT = '%Y%m%d'
 
     def __init__(self):
         super().__init__()
@@ -117,10 +121,11 @@ class KcwikiVoiceClient(KcwikiClient):
             return True
         if not modifiedDate:
             return True
-        modifiedDateSP = modifiedDate.split()
-        if (modifiedDateSP[1] in self.updateDate[0]) and \
-            (modifiedDateSP[2] == self.updateDate[1]) and \
-                (modifiedDateSP[3] == self.updateDate[2]):
+        modifiedDateTime = datetime.datetime.strptime(
+            modifiedDate, self.GMT_FORMAT)
+        botDateTime = datetime.datetime.strptime(
+            self.config['voice_config']['update_date'], self.BOT_FORMAT)
+        if modifiedDateTime >= botDateTime:
             return True
         else:
             return False
@@ -386,7 +391,8 @@ class KcwikiVoiceClient(KcwikiClient):
                         if nextShipId in self.voiceDataJson:
                             shipWikiFilename = \
                                 self.voiceDataJson[shipId]['voice_wiki_filename'][voiceId]
-                            if self.voiceDataJson[shipId]['voice_hash_info'][voiceId] ==\
+                            if voiceId in self.voiceDataJson[nextShipId]['voice_hash_info'] and\
+                                self.voiceDataJson[shipId]['voice_hash_info'][voiceId] ==\
                                     self.voiceDataJson[nextShipId]['voice_hash_info'][voiceId]:
                                 self.voiceDataJson[nextShipId]['voice_status'][voiceId] =\
                                     'duplicate_1'
