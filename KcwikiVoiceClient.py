@@ -12,8 +12,8 @@ from KcwikiClientException import KcwikiClientException
 
 
 class KcwikiVoiceClient(KcwikiClient):
-    # http://125.6.187.229/kcs/sound/
-    voiceCacheBaseUrl = 'http://125.6.187.229/kcs/sound/'
+    # http://203.104.209.150/kcs/sound/
+    voiceCacheBaseUrl = 'http://203.104.209.150/kcs/sound/'
     vcKey = [
         604825, 607300, 613847, 615318, 624009, 631856, 635451, 637218, 640529, 643036, 652687,
         658008, 662481, 669598, 675545, 685034, 687703, 696444, 702593, 703894, 711191, 714166,
