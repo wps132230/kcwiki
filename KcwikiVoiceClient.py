@@ -1,3 +1,4 @@
+import re
 import os
 import sys
 import json
@@ -64,6 +65,13 @@ class KcwikiVoiceClient(KcwikiClient):
         self.kcdataJson = None
         self.voiceType = self.config['voice_config']['type']
         self.seasonalSuffix = self.config['voice_config']['seasonal_suffix']
+        seasonalAlterPattern = re.compile(r'(^[A-Z][A-Za-z]+)[0-9]{4}$')
+        re_result = re.match(seasonalAlterPattern, self.seasonalSuffix)
+        if not re_result:
+            raise KcwikiClientException(
+                r'季节性语音后缀必须满足 ^[A-Z][A-Za-z]+[0-9]{4}$ 表达式！'
+            )
+        self.seasonalSuffixAlter = re_result.group(1)
         self.newShipId = self.config['voice_config']['new_ship_id']
         self.updateDate = self.config['voice_config']['update_date']
 
@@ -382,17 +390,24 @@ class KcwikiVoiceClient(KcwikiClient):
 
     async def removeDuplicatedVoice(self):
         await self.loadKCData()
+        kcdataMap = {}
         for ship in self.kcdataJson:
-            shipId = str(ship['id'])
-            if shipId in self.voiceDataJson:
-                for voiceId in self.voiceDataJson[shipId]['voice_status']:
-                    if ship['after_ship_id'] != None:
-                        nextShipId = str(ship['after_ship_id'])
+            kcdataMap[str(ship['id'])] = ship
+        for shipId, ship in kcdataMap.items():
+            curShipId = shipId
+            curShipInfo = ship
+            if curShipId in self.voiceDataJson:
+                for voiceId in self.voiceDataJson[curShipId]['voice_status']:
+                    if self.voiceDataJson[curShipId]['voice_status'][voiceId] == 'retry':
+                        raise KcwikiClientException('''存在未修复的语音，部分下载需要重新获取。
+请输入 python voice_bot.py f 或者 python voice_bot.py fix 来修复。''')
+                    if 'after_ship_id' in curShipInfo and curShipInfo['after_ship_id'] != None:
+                        nextShipId = str(curShipInfo['after_ship_id'])
                         if nextShipId in self.voiceDataJson:
                             shipWikiFilename = \
-                                self.voiceDataJson[shipId]['voice_wiki_filename'][voiceId]
+                                self.voiceDataJson[curShipId]['voice_wiki_filename'][voiceId]
                             if voiceId in self.voiceDataJson[nextShipId]['voice_hash_info'] and\
-                                self.voiceDataJson[shipId]['voice_hash_info'][voiceId] ==\
+                                self.voiceDataJson[curShipId]['voice_hash_info'][voiceId] ==\
                                     self.voiceDataJson[nextShipId]['voice_hash_info'][voiceId]:
                                 self.voiceDataJson[nextShipId]['voice_status'][voiceId] =\
                                     'duplicate_1'
@@ -557,7 +572,7 @@ class KcwikiVoiceClient(KcwikiClient):
                     })
                 if voiceStatus == 'duplicate_2':
                     duplicatedWikiFilename = self.voiceDataJson[shipId]['voice_duplicate'][voiceId][0]
-                    if not duplicatedWikiFilename[:-4].endswith(self.seasonalSuffix):
+                    if duplicatedWikiFilename.find(self.seasonalSuffixAlter) == -1:
                         continue
                     oldUnitList[stype].update({
                         duplicatedWikiFilename[:-4]:

@@ -7,12 +7,10 @@
     "voice_config": {
         "type": "seasonal",
         "new_ship_id": [
-            394, 395, 396, 397, 484, 516, 519,
-            544, 546, 549, 551, 552, 678, 679,
-            680
+            557, 558
         ],
-        "seasonal_suffix": "EveOfBattle2018",
-        "update_date": "20180214"
+        "seasonal_suffix": "WhiteDay2018",
+        "update_date": "20180322"
     },
     "download_config": {
         "include_id": [],
