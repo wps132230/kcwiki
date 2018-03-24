@@ -2,5 +2,5 @@
 # https://github.com/Damnever/pigar
 
 # KcwikiClient.py: 2,5
-# KcwikiVoiceClient.py: 9
-aiohttp == 3.0.5
+# KcwikiVoiceClient.py: 10
+aiohttp == 3.1.0

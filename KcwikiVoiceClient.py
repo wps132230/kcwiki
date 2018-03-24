@@ -1,9 +1,11 @@
+import re
 import os
 import sys
 import json
 import shutil
 import hashlib
 import asyncio
+import datetime
 
 from KcwikiClient import KcwikiClient
 from aiohttp.client_exceptions import ClientError
@@ -11,8 +13,8 @@ from KcwikiClientException import KcwikiClientException
 
 
 class KcwikiVoiceClient(KcwikiClient):
-    # http://125.6.187.229/kcs/sound/
-    voiceCacheBaseUrl = 'http://125.6.187.229/kcs/sound/'
+    # http://203.104.209.150/kcs/sound/
+    voiceCacheBaseUrl = 'http://203.104.209.150/kcs/sound/'
     vcKey = [
         604825, 607300, 613847, 615318, 624009, 631856, 635451, 637218, 640529, 643036, 652687,
         658008, 662481, 669598, 675545, 685034, 687703, 696444, 702593, 703894, 711191, 714166,
@@ -55,11 +57,21 @@ class KcwikiVoiceClient(KcwikiClient):
         17: '揚陸艦', 18: '装甲空母', 19: '工作艦', 20: '潜水母艦', 21: '練習巡洋艦', 22: '補給艦'
     }
 
+    GMT_FORMAT = '%a, %d %b %Y %H:%M:%S GMT'
+    BOT_FORMAT = '%Y%m%d'
+
     def __init__(self):
         super().__init__()
         self.kcdataJson = None
         self.voiceType = self.config['voice_config']['type']
         self.seasonalSuffix = self.config['voice_config']['seasonal_suffix']
+        seasonalAlterPattern = re.compile(r'(^[A-Z][A-Za-z]+)[0-9]{4}$')
+        re_result = re.match(seasonalAlterPattern, self.seasonalSuffix)
+        if not re_result:
+            raise KcwikiClientException(
+                r'季节性语音后缀必须满足 ^[A-Z][A-Za-z]+[0-9]{4}$ 表达式！'
+            )
+        self.seasonalSuffixAlter = re_result.group(1)
         self.newShipId = self.config['voice_config']['new_ship_id']
         self.updateDate = self.config['voice_config']['update_date']
 
@@ -117,10 +129,11 @@ class KcwikiVoiceClient(KcwikiClient):
             return True
         if not modifiedDate:
             return True
-        modifiedDateSP = modifiedDate.split()
-        if (modifiedDateSP[1] in self.updateDate[0]) and \
-            (modifiedDateSP[2] == self.updateDate[1]) and \
-                (modifiedDateSP[3] == self.updateDate[2]):
+        modifiedDateTime = datetime.datetime.strptime(
+            modifiedDate, self.GMT_FORMAT)
+        botDateTime = datetime.datetime.strptime(
+            self.config['voice_config']['update_date'], self.BOT_FORMAT)
+        if modifiedDateTime >= botDateTime:
             return True
         else:
             return False
@@ -377,16 +390,24 @@ class KcwikiVoiceClient(KcwikiClient):
 
     async def removeDuplicatedVoice(self):
         await self.loadKCData()
+        kcdataMap = {}
         for ship in self.kcdataJson:
-            shipId = str(ship['id'])
-            if shipId in self.voiceDataJson:
-                for voiceId in self.voiceDataJson[shipId]['voice_status']:
-                    if ship['after_ship_id'] != None:
-                        nextShipId = str(ship['after_ship_id'])
+            kcdataMap[str(ship['id'])] = ship
+        for shipId, ship in kcdataMap.items():
+            curShipId = shipId
+            curShipInfo = ship
+            if curShipId in self.voiceDataJson:
+                for voiceId in self.voiceDataJson[curShipId]['voice_status']:
+                    if self.voiceDataJson[curShipId]['voice_status'][voiceId] == 'retry':
+                        raise KcwikiClientException('''存在未修复的语音，部分下载需要重新获取。
+请输入 python voice_bot.py f 或者 python voice_bot.py fix 来修复。''')
+                    if 'after_ship_id' in curShipInfo and curShipInfo['after_ship_id'] != None:
+                        nextShipId = str(curShipInfo['after_ship_id'])
                         if nextShipId in self.voiceDataJson:
                             shipWikiFilename = \
-                                self.voiceDataJson[shipId]['voice_wiki_filename'][voiceId]
-                            if self.voiceDataJson[shipId]['voice_hash_info'][voiceId] ==\
+                                self.voiceDataJson[curShipId]['voice_wiki_filename'][voiceId]
+                            if voiceId in self.voiceDataJson[nextShipId]['voice_hash_info'] and\
+                                self.voiceDataJson[curShipId]['voice_hash_info'][voiceId] ==\
                                     self.voiceDataJson[nextShipId]['voice_hash_info'][voiceId]:
                                 self.voiceDataJson[nextShipId]['voice_status'][voiceId] =\
                                     'duplicate_1'
@@ -551,7 +572,7 @@ class KcwikiVoiceClient(KcwikiClient):
                     })
                 if voiceStatus == 'duplicate_2':
                     duplicatedWikiFilename = self.voiceDataJson[shipId]['voice_duplicate'][voiceId][0]
-                    if not duplicatedWikiFilename[:-4].endswith(self.seasonalSuffix):
+                    if duplicatedWikiFilename.find(self.seasonalSuffixAlter) == -1:
                         continue
                     oldUnitList[stype].update({
                         duplicatedWikiFilename[:-4]:
