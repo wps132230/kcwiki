@@ -59,17 +59,16 @@ def uploadVoice(path, mysession, editToken):
     kcwikiAPIUrl = 'https://zh.kcwiki.org/api.php'
     filelist = os.listdir(path)
     i = 0
-    for file in filelist:
+    for fff in filelist:
         rdata = {
             'action': 'upload',
             'token': editToken,
             'format': 'json',
-            'filename': file,
-            'file': open(os.path.join(path, file), 'rb')
+            'filename': fff,
         }
-        resp = mysession.post(kcwikiAPIUrl, data=rdata)
+        resp = mysession.post(kcwikiAPIUrl, data=rdata, files=[('file', open(os.path.join(path, fff), 'rb'))])
         print(resp.content)
-        print('Uploading ' + file)
+        print('Uploading ' + fff)
         i += 1
     print("Upload Finished!")
     print("Uploaded {} files.".format(i))
@@ -80,5 +79,6 @@ if __name__ == "__main__":
 
     downVoiceFromFriendlyRecords(path)
     mySess = requests.session()
+    
     editToken = loginWiki(mySess)
     uploadVoice(path, mySess, editToken)
