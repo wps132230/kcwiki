@@ -41,7 +41,7 @@ def loginWiki(mysession):
         'lgpassword': user_pswd
     }
     resp = mysession.post(kcwikiAPIUrl, data=rdata)
-    resp_json = resp.json()
+    #resp_json = resp.json()
     rdata = {
         'action': 'query',
         'meta': 'tokens',
@@ -67,7 +67,7 @@ def uploadVoice(path, mysession, editToken):
             'filename': fff,
         }
         resp = mysession.post(kcwikiAPIUrl, data=rdata, files=[('file', open(os.path.join(path, fff), 'rb'))])
-        print(resp.content)
+        #print(resp.content)
         print('Uploading ' + fff)
         i += 1
     print("Upload Finished!")
@@ -75,10 +75,12 @@ def uploadVoice(path, mysession, editToken):
 
 
 if __name__ == "__main__":
-    path = ''
-
+    path = r'F:\FriendlyRecords\Downloads'#path为存放语音文件的目录
+    rebuildDataJson()
     downVoiceFromFriendlyRecords(path)
+    genWikiText('2019SummerFriendFleet.txt', path)
+
     mySess = requests.session()
-    
     editToken = loginWiki(mySess)
     uploadVoice(path, mySess, editToken)
+
