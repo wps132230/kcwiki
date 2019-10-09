@@ -75,7 +75,7 @@ def uploadVoice(path, mysession, editToken):
 
 
 if __name__ == "__main__":
-    path = r'F:\FriendlyRecords\Downloads'#path为存放语音文件的目录
+    path = ''#path为存放语音文件的目录
     rebuildDataJson()
     downVoiceFromFriendlyRecords(path)
     genWikiText('2019SummerFriendFleet.txt', path)
