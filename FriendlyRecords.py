@@ -18,6 +18,12 @@ def getWikiId(api_id, all):
             return a['wiki_id']
 
 
+def getcnName(api_id, all):
+    for a in all:
+        if a['id'] == api_id:
+            return a['chinese_name']
+
+
 def rebuildDataJson():
     f = open('friendlyrecords.json', 'rb')
     ship_ids = []
@@ -45,16 +51,41 @@ def rebuildDataJson():
     df.insert(len(df.columns), 'filename', filenames)
     print("Filename appended to DataFrame.")
     wiki_ids = []
+    cn_names = []
     f = open('all.json', 'rb')
     js = json.loads(f.read())
     for shipid in df.ship_id:
         wiki_ids.append(getWikiId(shipid, js))
+        cn_names.append(getcnName(shipid, js))
     df.insert(len(df.columns), 'wiki_id', wiki_ids)
+    df.insert(len(df.columns), 'cn_name', cn_names)
     print('Wiki_id appended to DataFrame.')
     f = open('friendlyvoicelist.json', 'w')
     f.write(df.to_json(orient ='records'))
     f.close()
     print("Rebulid Complished.")
+
+
+
+def genWikiText(filename, path):
+    datafile = open('friendlyvoicelist.json', 'r')
+    data = json.load(datafile)
+    text = '===友军舰队===\n{{台词翻译表/页头}}\n'
+    filelist = os.listdir(path)
+    for d in data:
+        voice_name = '{}-FriendFleet{}'.format(d['wiki_id'], d['voice_id'])
+        if voice_name + '.mp3' in filelist:
+            text += "{{台词翻译表\n | 档名 =" + voice_name + "\n | 场合 =" + d['cn_name'] \
+                    + "\n | 日文台词 =\n | 中文译文 =\n}}\n"
+        else:
+            text += "{{台词翻译表\n | 档名 =" + voice_name + "\n | 场合 =" + d['cn_name'] + '(文件不存在)' \
+                    + "\n | 日文台词 =\n | 中文译文 =\n}}\n"
+    text += '{{页尾}}'
+    with open(filename, 'w', encoding='utf-8') as text_file:
+        text_file.write(text)
+        text_file.close()
+    print("wikiText generated--" + filename)
+
 
 
 def genmp3Urls_filenames(newjson, urls, filenames):
